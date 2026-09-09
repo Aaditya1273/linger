@@ -11,11 +11,13 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "configure": "node scripts/configure-world.js --write",
     "config:check": "node scripts/configure-world.js --check",
-    "build:prod": "sdk-commands build --production"
+    "build:prod": "sdk-commands build --production",
+    "test": "tsc -p tsconfig.test.json && node --test .test-out/test/*.test.js"
   },
   "devDependencies": {
     "@dcl/js-runtime": "7.27.0",
-    "@dcl/sdk": "7.27.0"
+    "@dcl/sdk": "7.27.0",
+    "@types/node": "^18.19.130"
   },
   "engines": {
     "node": ">=16.0.0",

@@ -1,4 +1,5 @@
 import { Bond, Echo, ReturnActivity } from '../types/linger'
+import { forDisplay } from './text'
 
 /**
  * All UI state in one mutable object.
@@ -111,7 +112,7 @@ export function setLinger(progress: number) {
 export function openEchoCard(echo: Echo) {
   ui.echoCard = {
     echoId: echo.id,
-    name: echo.owner.name || 'Someone',
+    name: forDisplay(echo.owner.name),
     note: echo.note,
     subtitle: echo.isGenesis ? 'Genesis Echo · LINGER Founding Visitor' : timeAgo(echo.createdAt),
     isGenesis: echo.isGenesis,
@@ -131,9 +132,9 @@ export function openBondCard(bond: Bond, selfId: string) {
   ui.bondCard = {
     bondId: bond.id,
     number: bond.number,
-    nameA: bond.playerA.name || 'Someone',
-    nameB: bond.playerB.name || 'Someone',
-    partnerName: partner.name || 'them',
+    nameA: forDisplay(bond.playerA.name),
+    nameB: forDisplay(bond.playerB.name),
+    partnerName: forDisplay(partner.name),
     canPreserve: ui.preservationEnabled,
     status: 'NOT_PRESERVED',
     awaitingPartner: false

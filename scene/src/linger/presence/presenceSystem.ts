@@ -5,6 +5,7 @@ import { LivePresence } from '../types/linger'
 import { isPlayerAtHearth } from '../hearth/hearthSystem'
 import { sendPresence, sendWave } from '../network/lingerClient'
 import { ui } from '../ui/state'
+import { forDisplay } from '../ui/text'
 
 /**
  * Reports where the local player is, and tracks who else is nearby.
@@ -76,7 +77,7 @@ function updateNearest(position: { x: number; z: number }) {
   const theyWavedRecently =
     !!closest && closest.wavedAt > 0 && now - closest.wavedAt <= BOND.waveWindowMs
 
-  ui.nearbyName = closest ? closest.identity.name : ''
+  ui.nearbyName = closest ? forDisplay(closest.identity.name) : ''
   ui.canWave = !!closest && !iWavedRecently
   ui.theyWaved = theyWavedRecently
   ui.bothWaved = iWavedRecently && theyWavedRecently

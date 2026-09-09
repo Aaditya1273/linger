@@ -26,6 +26,7 @@ import { addBondStone, setBondStones } from './bond/bondRenderer'
 import { clearWave, setLivePresence, startPresenceSystem, wave } from './presence/presenceSystem'
 import { onPreserve, onWave } from './ui/panels'
 import { initUi, toast } from './ui/root'
+import { forDisplay } from './ui/text'
 import {
   connect,
   getSessionId,
@@ -226,7 +227,7 @@ function wireNetwork() {
     onEchoAdded: (echo) => {
       upsertEcho(echo)
       ui.activeEchoes = echoCount()
-      toast(`${echo.owner.name} left an Echo.`, 3000)
+      toast(`${forDisplay(echo.owner.name)} left an Echo.`, 3000)
     },
 
     onEchoUpdated: (echo) => {

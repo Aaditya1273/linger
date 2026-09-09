@@ -2,6 +2,7 @@ import ReactEcs, { UiEntity } from '@dcl/sdk/react-ecs'
 import { Color4 } from '@dcl/sdk/math'
 import { layout, palette, type as typeScale } from './theme'
 import { closeOverlay, toggleDiagnostics, ui } from './state'
+import { forDisplay } from './text'
 
 /**
  * LINGER panels.
@@ -118,7 +119,7 @@ export function Diagnostics() {
     <UiEntity
       uiTransform={{
         width: '100%',
-        height: ui.diagnosticsOpen ? 170 : 28,
+        height: ui.diagnosticsOpen ? 206 : layout.touchTarget,
         flexDirection: 'column',
         alignItems: 'center'
       }}
@@ -126,7 +127,10 @@ export function Diagnostics() {
       <UiEntity
         uiTransform={{
           width: layout.touchTarget,
-          height: 28,
+          // Full touch target height. The dot itself stays visually small; the tappable
+          // box around it is 64px, because 28px is not reliably hittable with a thumb and
+          // the project's own rule is a 64px minimum for anything interactive.
+          height: layout.touchTarget,
           justifyContent: 'center',
           alignItems: 'center'
         }}
@@ -428,7 +432,7 @@ export function ReturnPanel() {
     lines.push(a.reads === 1 ? '✉   Someone read your note.' : `✉   ${a.reads} people read your note.`)
   }
   for (const bond of a.newBonds) {
-    lines.push(`◈   Your Bond with ${bond.playerB.name || 'someone'} still stands.`)
+    lines.push(`◈   Your Bond with ${forDisplay(bond.playerB.name)} still stands.`)
   }
 
   returnLines = lines
