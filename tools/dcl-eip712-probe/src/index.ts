@@ -145,13 +145,14 @@ async function runProbe() {
   }
 
   if (!account) {
-    state.status = 'UNVERIFIED'
-    state.detail = 'no wallet connected (guest session?)'
-    log('UNVERIFIED — CLIENT CAPABILITY: no wallet account available')
-    setResult(state)
-    return
+    // Deliberately NOT returning here. Whether the explorer even routes
+    // eth_signTypedData_v4 is the question we came to answer, and a JSON-RPC -32601
+    // ("method not found") settles it without any wallet being involved at all. Bailing
+    // out on a guest session would throw away the cheapest possible answer.
+    log('no wallet account — continuing to probe method availability only')
+  } else {
+    log(`connected account ${account}`)
   }
-  log(`connected account ${account}`)
 
   // ---- 2. Request the signature ---------------------------------------------------
   // Params are [address, JSON string] — the string form is what decentraland-transactions
@@ -173,12 +174,15 @@ async function runProbe() {
       message.indexOf('rejected') !== -1 ||
       message.indexOf('User denied') !== -1
 
-    state.status = looksUnsupported ? 'UNVERIFIED' : 'FAIL'
+    state.status = looksUnsupported || !account ? 'UNVERIFIED' : 'FAIL'
     state.detail = looksUnsupported
-      ? 'client does not expose eth_signTypedData_v4'
+      ? 'UNVERIFIED — CLIENT DOES NOT EXPOSE TYPED-DATA SIGNING'
       : looksRejected
         ? 'user rejected the signature request'
-        : `signing failed: ${message}`
+        : !account
+          ? `no wallet connected; method reached the provider and returned: ${message}`
+          : `signing failed: ${message}`
+    log(`raw provider error: ${message}`)
     log(
       looksUnsupported
         ? 'UNVERIFIED — CLIENT CAPABILITY: eth_signTypedData_v4 not supported'
@@ -227,6 +231,14 @@ async function runProbe() {
   log(`recovered ${recovered}`)
   log(`expected  ${account} (the connected wallet)`)
   log(`note: the audited vector's signer ${EXPECTED_TEST_VECTOR_SIGNER} is a repo test key`)
+
+  if (!account) {
+    state.status = 'UNVERIFIED'
+    state.detail = 'signature obtained but no account to compare against'
+    log('UNVERIFIED: got a signature with no connected account to verify it against')
+    setResult(state)
+    return
+  }
 
   if (recovered.toLowerCase() === account.toLowerCase()) {
     state.status = 'PASS'
