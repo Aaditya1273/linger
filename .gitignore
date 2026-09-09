@@ -16,7 +16,6 @@ sdk7-refrance-only/
 node_modules/
 server/lib/
 bin/
-package-lock.json
 
 # Local env
 *.env
