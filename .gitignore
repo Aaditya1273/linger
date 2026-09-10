@@ -1,30 +1,26 @@
-# File konfigurasi IDE
-# ---------------------
-/nbproject/
-.idea/*
-# File cache Sublime Text
-*.tmlanguage.cache
-*.tmPreferences.cache
-*.stTheme.cache
-*.sublime-workspace
-*.sublime-project
-
-# Local SDK7 reference checkout (not part of this project)
-sdk7-refrance-only/
-
-# Node / build output
+.DS_Store
+.worktrees/
 node_modules/
-server/lib/
-bin/
+.next/
+.next-e2e/
+dist/
+coverage/
+playwright-report/
+test-results/
+*.tsbuildinfo
+contracts/**/build/
+contracts/**/package_summaries/
+.agents/
+.claude/
+.cursor/plans/
+*.plan.md
 
-# Local env
-*.env
+# personal sprint notes — local only
+demo-day-sprint-plan.md
 
-bin/
-main.crdt
-dclcontext/
+# presentation material — kept local only, never synced
+docs/presentation/
 
-# Foundry build artifacts
-out/
-cache/
-broadcast/
+.vercel
+.env*
+!.env.example

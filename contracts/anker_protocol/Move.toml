@@ -1,0 +1,25 @@
+[package]
+name = "anker_protocol"
+edition = "2024.beta"
+version = "0.0.1"
+
+# No `[addresses]` block: it would make the manifest "old-style", which cannot
+# depend on the new-style deepbookv3 packages. The named address
+# `anker_protocol` is auto-managed from the package name.
+
+[dependencies]
+# DeepBook Predict `account` package (AccountWrapper custody). Pinned to the
+# commit deployed as the 8-04 testnet generation.
+account = { git = "https://github.com/MystenLabs/deepbookv3.git", subdir = "packages/account", rev = "45958f9f62edcb7b2b3eef89122a773c91ea4783" }
+
+# `account` is already published on testnet (8-04 generation). We depend on
+# source for typechecking only; `dep-replacements` tells `sui client publish`
+# to link against the on-chain package instead of re-publishing it.
+#
+# CLI 1.75 quirk: its unpublished-dependency gate reads only the dependency's
+# own Published.toml, which upstream does not commit. To publish from a fresh
+# machine, drop the [published.testnet] identity below into
+# ~/.move/git/…deepbookv3_git_<rev>/packages/account/Published.toml and pass
+# `--allow-dirty` (see ADR-0012).
+[dep-replacements.testnet]
+account = { git = "https://github.com/MystenLabs/deepbookv3.git", subdir = "packages/account", rev = "45958f9f62edcb7b2b3eef89122a773c91ea4783", published-at = "0xbdbb60b00f2d4f30daeff62f2c642b18433a8fcdfbebccc808df578df2a0c203", original-id = "0xbdbb60b00f2d4f30daeff62f2c642b18433a8fcdfbebccc808df578df2a0c203" }

@@ -1,6 +1,0 @@
-arch/
-node_modules
-/.vscode/
-lib
-bin/
-.test-out/

@@ -1,0 +1,50 @@
+{
+  "name": "anker-protocol",
+  "private": true,
+  "version": "0.5.0",
+  "type": "module",
+  "scripts": {
+    "dev": "next dev --hostname 127.0.0.1",
+    "build": "next build",
+    "start": "next start --hostname 127.0.0.1",
+    "typecheck": "tsc --noEmit -p tsconfig.json --pretty false",
+    "test": "vitest run --passWithNoTests",
+    "test:unit": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:move": "cd contracts/anker_protocol && sui move test",
+    "codegen:summary": "cd contracts/anker_protocol && sui move summary",
+    "codegen": "sui-ts-codegen generate",
+    "ci": "npm run lint && npm run test:unit && npm run test:move && npm run build && npm run test:e2e",
+    "lint": "npm run typecheck && npm run lint:guardrails",
+    "lint:guardrails": "node scripts/quality-gates.mjs"
+  },
+  "dependencies": {
+    "@mysten/dapp-kit-react": "^2.0.3",
+    "@mysten/enoki": "^1.2.3",
+    "@mysten/sui": "^2.17.0",
+    "@neondatabase/serverless": "^1.1.0",
+    "@tanstack/react-query": "^5.80.0",
+    "@vercel/analytics": "^2.0.1",
+    "lucide-react": "^0.468.0",
+    "next": "^14.2.30",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "recharts": "^2.15.0",
+    "uqr": "^0.1.3"
+  },
+  "devDependencies": {
+    "@mysten/codegen": "^0.11.1",
+    "@playwright/test": "^1.52.0",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^15.0.7",
+    "@types/node": "^20.19.0",
+    "@types/react": "^18.3.23",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "^4.5.0",
+    "jsdom": "^25.0.1",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5",
+    "vitest": "^4.1.7"
+  }
+}

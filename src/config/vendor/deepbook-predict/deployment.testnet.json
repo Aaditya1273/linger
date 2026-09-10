@@ -1,0 +1,105 @@
+{
+  "network": "testnet",
+  "chainId": "4c78adac",
+  "record": "predict-testnet-8-04",
+  "deployer": "0x364c09b14bc64320dd8ced0848e7e4efe75510bd7ee05a88253a5330b6f22bef",
+  "packages": {
+    "fixed_math": "0xdf0bd2a0d201562f2bdecb1b77d7998c7af316f6fd7d1eab9b9035064f21bfd4",
+    "account": "0xbdbb60b00f2d4f30daeff62f2c642b18433a8fcdfbebccc808df578df2a0c203",
+    "propbook": "0xed1295ff3c9a9415766afff20a74cdf2e362647be09aaf13b809302c0109e912",
+    "predict": "0xfe742239a3b033f7d52ed5275f238c17d27498ca0ee5ea5672ea732eb3f4dbbb"
+  },
+  "linked": {
+    "dusdc": "0xe95040085976bfd54a1a07225cd46c8a2b4e8e2b6732f140a0fc49850ba73e1a",
+    "deep": "0x36dbef866a1d62bf7328989a10fb2f07d769f4ee587c0de4a0a256e57e0a58a8",
+    "bs_sid": "0x6a54299d593fca24edf6b17bf8c3aff0b7ba8bc8f4276e9c1065689c50223bba",
+    "bs_oracle": "0x9d2cf38611d971a0e918b93fc0113d279f5c923f43e62c407a9ad0f9d82f6698",
+    "pyth_lazer": "0xf5bd2141967507050a91b58de3d95e77c432cd90d1799ee46effc27430a68c21",
+    "wormhole": "0xd5afd4e456e5451f1ca1e7b3d734ce7a0a3b397811a6cb72a4bd1dfc387839f2"
+  },
+  "sharedObjects": {
+    "account": {
+      "account_registry::AccountRegistry": "0x21a7ed28397363b5550853c1f08795731257de81028cd1bf87f20c0752c8ca2f"
+    },
+    "propbook": {
+      "registry::OracleRegistry": "0xc1dffc5f7a5404cb002ba3bd7c50d6a2dbe8bb6afd40080cd663965deff9d577",
+      "pyth_feed::PythFeed": "0xccafaa6c5a41f0493585cf268f2b4dc14c91ed798362444144cac2c745db8dde",
+      "block_scholes_store::BlockScholesValueStore": "0x6d9de17954f4c1a2f01fdd97c0bb8a2e682c1fea0f8f048dcd127d543a6ac051",
+      "block_scholes_store::BlockScholesSVIStore": "0x83c2d6307fd3591228052fc0d24c4f00a698b0eb4fef5e6083a213ca0d54bd35"
+    },
+    "predict": {
+      "plp::PoolVault": "0xeef535e7fcb850a943807ce48cc543c6d990b39e68a7bc47d0b56651ff20ab0a",
+      "protocol_config::ProtocolConfig": "0x43703ceee4d5f5a9e8cbf728071c34dc65961dd6e878fafd9ac36d86a9a4ce5b",
+      "registry::Registry": "0x35970bfd0ff3703cb38b3fff3a3fbb0bc0e5638e7c747af3a8e42e2c95d353f0"
+    }
+  },
+  "ownedCaps": {
+    "fixed_math": {
+      "package::UpgradeCap": "0xb119219774a978ad1ee41aaa2504f035a947b67f6de400d2e24c536755565761"
+    },
+    "account": {
+      "account_registry::AccountAdminCap": "0xb60110c92b80b64433b627bc141e68f5bbe1a404b06bcadd02b4073e98a3a6ae",
+      "package::UpgradeCap": "0x46515dbb557f517c0e1b9a44529a2449d669b6379e83ab39ff31aa3f09058a80"
+    },
+    "propbook": {
+      "registry::RegistryAdminCap": "0x2227737d636b43c3307c28423150a6669836fae5cbc1931c9481f04adb92a386",
+      "package::UpgradeCap": "0xd7c5aab95081548ce227339095f8cf28a143e10ad03e72b2e5486e74c359d3be"
+    },
+    "predict": {
+      "admin::AdminCap": "0xe1db97d550038496cb5bf1960c6e188ee6ea97f5abaf690854ed84186ada086c",
+      "market_lifecycle_cap::MarketLifecycleCap": "0x563a800b050ca3a6786681914d8f9e90c6ea51ba5639ad84fda6dbfc3a8018ec",
+      "coin_registry::MetadataCap<predict::plp::PLP>": "0x733a932c4954ee6de0f763fbe398c311bf2ddc2817ed7d449c09634bfb8d0795",
+      "package::UpgradeCap": "0xd52783b37230387f48bdff9c58339cb3d6090a1a0990eafcbb8df070df5b1fa8"
+    }
+  },
+  "publishTx": {
+    "fixed_math": "GxRqs4q6VZCENLHKut4HqPZrKBt8gYTrD2fdvm4me22K",
+    "account": "8ianpWMBnezTaxK5saTWzRsRvYu5j9CtnQgLzsANV74X",
+    "propbook": "FVFfEzsJwRi3yrN6qVL5EcWeMfC5edQLhTxBePTjFbcb",
+    "predict": "5pEg5bjj2Jk8ZVq5YH6NsLhN8YEQyCr4q73NzfAhZHWN"
+  },
+  "wiring": {
+    "version": 1,
+    "network": "testnet",
+    "operator": "0x364c09b14bc64320dd8ced0848e7e4efe75510bd7ee05a88253a5330b6f22bef",
+    "updatedAt": "2026-08-06T05:40:00.000Z",
+    "vendoredNote": "Hand-assembled from on-chain state (deployer publish burst 2026-08-04T12:18:52Z..12:20:22Z); upstream has not published an 8-04 deployment record.",
+    "asset": {
+      "name": "BTC_USD",
+      "propbookUnderlyingId": 1,
+      "pythSourceId": 1,
+      "blockScholesSourceId": 1,
+      "predictUnderlyingRegistered": true,
+      "predictUnderlyingRegisteredTx": "G9zSarA5WsRgatqXY54g7nYKa3kHBjfLhNxUnvCYAm43"
+    },
+    "cadences": [
+      {
+        "id": 0,
+        "name": "1m",
+        "tickSize": "10000000",
+        "admissionTickSize": "1000000000",
+        "maxExpiryAllocation": "50000000000",
+        "initialExpiryCash": "10000000000",
+        "windowSize": "3"
+      },
+      {
+        "id": 1,
+        "name": "5m",
+        "tickSize": "10000000",
+        "admissionTickSize": "1000000000",
+        "maxExpiryAllocation": "50000000000",
+        "initialExpiryCash": "10000000000",
+        "windowSize": "3"
+      },
+      {
+        "id": 2,
+        "name": "1h",
+        "tickSize": "10000000",
+        "admissionTickSize": "1000000000",
+        "maxExpiryAllocation": "250000000000",
+        "initialExpiryCash": "50000000000",
+        "windowSize": "3"
+      }
+    ]
+  }
+}
