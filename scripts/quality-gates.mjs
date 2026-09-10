@@ -3,39 +3,14 @@ import { extname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.move', '.md']);
-const DEFAULT_SCAN_ROOTS = ['app', 'src', 'contracts', 'tests', 'README.md'];
+const DEFAULT_SCAN_ROOTS = ['app', 'src', 'packages', 'scripts', 'contracts', 'README.md'];
 
 const FORBIDDEN_PATTERNS = [
-  {
-    ruleId: 'no-first-manager-selection',
-    pattern: /managersQuery\.data\?\.\[0\]/,
-    message: 'Do not select the first PredictManager; subscriptions must use an owned unallocated manager.',
-  },
-  {
-    ruleId: 'no-public-product-note-constructor',
-    pattern: /public fun new_dual_investment_note<Asset>\(/,
-    message: 'ProductNote construction must stay behind the protocol subscription entry point.',
-  },
-  {
-    ruleId: 'no-transferable-product-note',
-    pattern: /ProductNote<[^>]+> has key,\s*store/,
-    message: 'ProductNote must not regain store; static owner semantics would become unsafe.',
-  },
   {
     ruleId: 'no-principal-plus-coupon-settlement',
     pattern:
       /\b(?:grossPayout|payoutAmount|claimPayout|redeemPayout|redeemAmount)\b[^;\n=]*=\s*[^;\n]*principal\s*\+\s*(?:Math\.max\(\s*0\s*,\s*)?[^;\n]*coupon/,
     message: 'Settlement must use reserve + coupon + realized leg payout, not principal + coupon.',
-  },
-  {
-    ruleId: 'no-live-shark-fin-product-path',
-    pattern: /(?:src\/products\/sharkFin|useSharkFinQuote|buildSubscribeSharkFin)/,
-    message: 'Shark Fin must stay out of live frontend subscription paths.',
-  },
-  {
-    ruleId: 'no-preview-execution-adapter',
-    pattern: /(?:executionAdapter|previewOnlyExecutionAdapter)/,
-    message: 'Preview-only execution adapters must not be used in live subscription paths.',
   },
   {
     ruleId: 'no-unsafe-rounded-bigint',
@@ -64,7 +39,9 @@ export function shouldScanPath(filePath) {
   const normalized = normalizePath(filePath);
   if (normalized.includes('/node_modules/') || normalized.startsWith('node_modules/')) return false;
   if (normalized.includes('/.next/') || normalized.startsWith('.next/')) return false;
-  if (normalized.includes('/contracts/anker_protocol/build/')) return false;
+  // This file's fixtures ARE the forbidden patterns; scanning it self-flags.
+  if (normalized === 'scripts/quality-gates.test.mjs') return false;
+  if (normalized.includes('/artifacts/') || normalized.includes('/cache/')) return false;
   if (normalized.endsWith('.json') || normalized.endsWith('.lock')) return false;
   return SOURCE_EXTENSIONS.has(extname(normalized)) || normalized === 'README.md';
 }

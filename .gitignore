@@ -1,26 +1,22 @@
-.DS_Store
-.worktrees/
 node_modules/
 .next/
 .next-e2e/
+out/
 dist/
+*.tsbuildinfo
+
+# Secrets — never commit. Only .env.example is tracked.
+.env
+.env.*
+!.env.example
+
+# Contract build output
+artifacts/
+cache/
+typechain-types/
+
+# Test output
 coverage/
 playwright-report/
 test-results/
-*.tsbuildinfo
-contracts/**/build/
-contracts/**/package_summaries/
-.agents/
-.claude/
-.cursor/plans/
-*.plan.md
-
-# personal sprint notes — local only
-demo-day-sprint-plan.md
-
-# presentation material — kept local only, never synced
-docs/presentation/
-
-.vercel
-.env*
-!.env.example
+.DS_Store
