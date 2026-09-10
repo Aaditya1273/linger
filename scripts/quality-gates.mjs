@@ -13,7 +13,10 @@ const DEX_ONLY = (filePath) => filePath.startsWith('packages/dex/');
  * collateral constant to deploy a contract; that is not market I/O.
  */
 const OUTSIDE_DEX = (filePath) =>
-  !filePath.startsWith('packages/dex/') && !filePath.startsWith('scripts/');
+  !filePath.startsWith('packages/dex/') &&
+  !filePath.startsWith('scripts/') &&
+  // Docs describe the configuration; naming an endpoint is not performing I/O.
+  !filePath.endsWith('.md');
 
 const FORBIDDEN_PATTERNS = [
   {
