@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { shortAddress, suiExplorerObjectUrl, suiExplorerTxUrl } from './PortfolioFormat';
+import { shortAddress, explorerAddressUrl, explorerTxUrl } from './PortfolioFormat';
 
 describe('wallet address formatting', () => {
   it('shows the first 6 and last 4 characters around one ellipsis', () => {
@@ -11,12 +11,12 @@ describe('wallet address formatting', () => {
   });
 });
 
-describe('Sui explorer links', () => {
-  it('uses SuiVision testnet transaction links', () => {
-    expect(suiExplorerTxUrl('0xdigest')).toBe('https://testnet.suivision.xyz/txblock/0xdigest');
+describe('Shannon explorer links', () => {
+  it('uses Shannon explorer transaction links', () => {
+    expect(explorerTxUrl('0xhash')).toBe('https://shannon-explorer.somnia.network/tx/0xhash');
   });
 
-  it('uses SuiVision testnet object links', () => {
-    expect(suiExplorerObjectUrl('0xobject')).toBe('https://testnet.suivision.xyz/object/0xobject');
+  it('uses Shannon explorer address links', () => {
+    expect(explorerAddressUrl('0xabc')).toBe('https://shannon-explorer.somnia.network/address/0xabc');
   });
 });

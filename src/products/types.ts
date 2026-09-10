@@ -1,6 +1,6 @@
 export type ProductType = 'dual-investment';
 
-export type PrincipalAsset = 'dUSDC' | 'DBTC' | 'USDsui';
+export type PrincipalAsset = 'USDso' | 'DBTC';
 
 export type LegInstrumentType = 'binary-up' | 'binary-down' | 'range';
 
@@ -100,7 +100,7 @@ export interface StructuredProductQuote {
   title: string;
   principal: number;
   principalAsset?: PrincipalAsset;
-  quoteAsset?: 'dUSDC' | 'USDsui';
+  quoteAsset?: 'USDso';
   oracle: OracleMarket;
   legs: LegQuote[];
   totalLegCost: number;

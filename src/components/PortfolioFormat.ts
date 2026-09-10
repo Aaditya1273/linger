@@ -51,17 +51,12 @@ export function shortAddress(value: string) {
   return value.length > 10 ? `${value.slice(0, 6)}...${value.slice(-4)}` : value;
 }
 
-const SUI_EXPLORER_BASE = 'https://testnet.suivision.xyz';
+const EXPLORER_BASE = 'https://shannon-explorer.somnia.network';
 
-export function suiExplorerTxUrl(digest: string) {
-  return `${SUI_EXPLORER_BASE}/txblock/${digest}`;
+export function explorerTxUrl(hash: string) {
+  return `${EXPLORER_BASE}/tx/${hash}`;
 }
 
-export function suiExplorerObjectUrl(objectId: string) {
-  return `${SUI_EXPLORER_BASE}/object/${objectId}`;
-}
-
-/** The account page — the user's full on-chain history in one place. */
-export function suiExplorerAddressUrl(address: string) {
-  return `${SUI_EXPLORER_BASE}/account/${address}`;
+export function explorerAddressUrl(address: string) {
+  return `${EXPLORER_BASE}/address/${address}`;
 }
