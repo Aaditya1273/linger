@@ -5276,7 +5276,7 @@ dd {
   animation: wallet-cta-spin 700ms linear infinite;
 }
 
-/* Trust line — the Enoki wordmark paints with currentColor. */
+/* Trust line under the connector list. */
 .connect-footer {
   display: flex;
   align-items: center;
