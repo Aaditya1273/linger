@@ -1,4 +1,4 @@
-import { DAY_MS } from '../products/tenorMarkets';
+import { DAY_MS } from '../products/units';
 import type { BenchmarkRun, BenchmarkSample } from './buildBenchmarkRun';
 import { medianEdgePp, sampleEdgePp } from './evaluateAlertRules';
 import type { TimestampedSample } from './store';

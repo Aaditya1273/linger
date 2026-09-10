@@ -16,3 +16,6 @@ export function aprFromCoupon(coupon: number, principal: number, daysToExpiry: n
   if (principal <= 0 || daysToExpiry <= 0) return 0;
   return (coupon / principal) * (365 / daysToExpiry);
 }
+
+/** One day in ms. Tenor arithmetic and Edge Track bucketing both need it. */
+export const DAY_MS = 86_400_000;

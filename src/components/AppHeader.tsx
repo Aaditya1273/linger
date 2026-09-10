@@ -8,12 +8,8 @@ import { LanguageSwitcher } from './LanguageSwitcher';
 
 export type ActiveProduct = 'dual-investment' | 'portfolio' | 'analytics';
 
-const WalletAccountControl = dynamic(
-  () => import('./WalletAccountControl').then((module) => module.WalletAccountControl),
-  {
-    ssr: false,
-  },
-);
+// ssr:false — wagmi reads window.ethereum, which does not exist on the server.
+const WalletButton = dynamic(() => import('./WalletButton').then((m) => m.WalletButton), { ssr: false });
 
 function currentPathForActiveProduct(activeProduct: ActiveProduct | undefined) {
   if (activeProduct === 'portfolio') return '/app/portfolio';
@@ -68,7 +64,7 @@ export function AppHeader({
       <div className="top-nav-actions">
         <LanguageSwitcher locale={locale} currentPath={currentPathForActiveProduct(activeProduct)} />
         <div className="wallet-area">
-          <WalletAccountControl locale={locale} />
+          <WalletButton />
         </div>
       </div>
     </header>

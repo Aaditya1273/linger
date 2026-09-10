@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import type { BinanceDualInvestmentProduct } from '../deepbook/binanceDualInvestment';
+import type { BinanceDualInvestmentProduct } from '../benchmark/binanceDualInvestment';
 import type { OracleMarket } from '../products/types';
 
 async function fetchBinanceDualInvestmentProductsFromProxy(): Promise<BinanceDualInvestmentProduct[]> {

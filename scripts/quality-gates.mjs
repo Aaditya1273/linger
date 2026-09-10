@@ -5,7 +5,40 @@ import { fileURLToPath } from 'node:url';
 const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.move', '.md']);
 const DEFAULT_SCAN_ROOTS = ['app', 'src', 'packages', 'scripts', 'contracts', 'README.md'];
 
+/** Rules that only apply inside packages/dex. */
+const DEX_ONLY = (filePath) => filePath.startsWith('packages/dex/');
+/**
+ * Rules that apply everywhere EXCEPT the DreamDEX boundary itself and the
+ * deploy tooling. `scripts/` legitimately needs the chain definition and the
+ * collateral constant to deploy a contract; that is not market I/O.
+ */
+const OUTSIDE_DEX = (filePath) =>
+  !filePath.startsWith('packages/dex/') && !filePath.startsWith('scripts/');
+
 const FORBIDDEN_PATTERNS = [
+  {
+    ruleId: 'no-float-money-in-dex',
+    scope: DEX_ONLY,
+    // parseFloat/Number() on a money value, or a decimal literal used in math.
+    pattern: /\b(?:parseFloat|toFixed)\s*\(|\b\d+\.\d+\s*[*/+-]|[*/+-]\s*\d+\.\d+/,
+    message: 'packages/dex must do all money math in bigint; no float literals or parseFloat/toFixed.',
+  },
+  {
+    ruleId: 'no-hardcoded-addresses',
+    // A 20-byte hex literal. Protocol singletons come from the SDK's exported
+    // constants; market/pool addresses are resolved at runtime and TTL-cached.
+    pattern: /['"`]0x[0-9a-fA-F]{40}['"`]/,
+    message: 'Do not hard-code contract addresses; read them from the SDK constants or resolve them at runtime.',
+  },
+  {
+    ruleId: 'no-dreamdex-io-outside-dex',
+    scope: OUTSIDE_DEX,
+    // The market surface only. The `/chains` subpath is just a viem chain
+    // definition (id, RPC, explorer) and carries no market I/O, so wallet
+    // config may import it.
+    pattern: /from\s+['"`]@somnia-chain\/markets-sdk['"`]|smk\.somnia\.host/,
+    message: 'All DreamDEX market I/O must go through @anker/dex. No direct SDK import or indexer URL outside packages/dex.',
+  },
   {
     ruleId: 'no-principal-plus-coupon-settlement',
     pattern:
@@ -61,6 +94,7 @@ export function scanForbiddenPatterns(files) {
     lines.forEach((line, index) => {
       if (isAllowedTestAssertion(filePath, line)) return;
       for (const rule of FORBIDDEN_PATTERNS) {
+        if (rule.scope && !rule.scope(filePath)) continue;
         if (rule.pattern.test(line)) {
           findings.push({
             filePath,

@@ -28,8 +28,11 @@ describe('EdgeChart', () => {
 
     // Default selection = first active track (Jul 16 12:00 UTC settlement, ≈3d tenor),
     // shown in the viewer's timezone (tests pin Asia/Shanghai) with a UTC-offset annotation.
-    const trigger = screen.getByRole('button', { name: 'Expiry Market' });
-    expect(trigger).toHaveTextContent(/Jul 16, 20:00 \(UTC\+8\).*≈3d/);
+    // Native grouped <select> replaced the Sui-era sheet picker; the selected
+    // option carries the same label the trigger used to.
+    const picker = screen.getByRole('combobox', { name: 'Expiry Market' }) as HTMLSelectElement;
+    const selectedOption = picker.options[picker.selectedIndex];
+    expect(selectedOption?.textContent ?? '').toMatch(/Jul 16, 20:00 \(UTC\+8\).*≈3d/);
     expect(screen.getByText('Active')).toBeVisible();
 
     // Selected-market summary strip: 4 rows, all leading, median +7.50 pts.
@@ -46,18 +49,15 @@ describe('EdgeChart', () => {
   it('groups options into Active and Ended and switches Tracks via the picker', () => {
     render(<EdgeChart locale="en" edgeTracks={fixtureTracks()} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Expiry Market' }));
-    const listbox = screen.getByRole('listbox', { name: 'Expiry Market' });
-    const groups = within(listbox).getAllByRole('group');
-    expect(groups.map((g) => g.getAttribute('aria-label'))).toEqual(['Active', 'Ended']);
+    const picker = screen.getByRole('combobox', { name: 'Expiry Market' }) as HTMLSelectElement;
+    const groups = within(picker).getAllByRole('group');
+    expect(groups.map((g) => g.getAttribute('label'))).toEqual(['Active', 'Ended']);
 
     // Ended group holds the 1d market that migrated to the hourly shelf.
-    const endedOptions = within(groups[1]!).getAllByRole('option');
+    const endedOptions = within(groups[1]!).getAllByRole('option') as HTMLOptionElement[];
     expect(endedOptions).toHaveLength(1);
 
-    fireEvent.click(endedOptions[0]!);
-    // Picking closes the panel and swaps the Track.
-    expect(screen.queryByRole('listbox', { name: 'Expiry Market' })).not.toBeInTheDocument();
+    fireEvent.change(picker, { target: { value: endedOptions[0]!.value } });
     expect(screen.getByText('Moved to hourly shelf')).toBeVisible();
     // One matched Run only → insufficient-samples notice instead of a chart.
     expect(screen.getByText(/its Edge Track appears after two matched Runs/i)).toBeVisible();

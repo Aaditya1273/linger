@@ -1,6 +1,6 @@
-import { PortfolioPage } from '../../../../src/components/PortfolioPage';
+import { PositionsPage } from '../../../../src/components/PositionsPage';
 import { normalizeLocale } from '../../../../src/i18n';
 
 export default function Page({ params }: { params: { locale: string } }) {
-  return <PortfolioPage locale={normalizeLocale(params.locale)} />;
+  return <PositionsPage locale={normalizeLocale(params.locale)} />;
 }

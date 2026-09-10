@@ -1,4 +1,4 @@
-import { DAY_MS } from '../products/tenorMarkets';
+import { DAY_MS } from '../products/units';
 import type { TimestampedSample } from './store';
 
 /** Fixed fixture boundary used by deterministic E2E / Demo Mode Analytics. */

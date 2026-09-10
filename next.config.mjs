@@ -18,6 +18,19 @@ const OG_IMAGE_ASSETS = ['./public/anker-logo.png', './src/fonts/og/Fredoka-Bold
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  /**
+   * wagmi's connectors barrel pulls in @base-org/account -> @coinbase/cdp-sdk,
+   * which imports @x402/* for a payments feature this app never touches. Those
+   * are optional peers and are not installed, so webpack cannot resolve them.
+   * Aliasing to false keeps the unused branch out of the bundle instead of
+   * installing a payments SDK we do not use.
+   */
+  webpack: (config, { webpack }) => {
+    // Ignore the whole @x402/* family rather than aliasing each entry point:
+    // the SDK reaches for several and the exact set changes between versions.
+    config.plugins.push(new webpack.IgnorePlugin({ resourceRegExp: /^@x402\// }));
+    return config;
+  },
   distDir: isDeterministicE2E ? '.next-e2e' : '.next',
   experimental: {
     outputFileTracingIncludes: {

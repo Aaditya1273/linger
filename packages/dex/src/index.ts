@@ -41,10 +41,10 @@ import {
   type FillResult,
   type SettledMarket,
   type WriteGate,
-} from "./types.js";
-import { costOf, crossingPrice, makeReadClient, resolveScale, type Scale } from "./money.js";
+} from "./types";
+import { costOf, crossingPrice, makeReadClient, resolveScale, type Scale } from "./money";
 
-export * from "./types.js";
+export * from "./types";
 export {
   applyBps,
   costOf,
@@ -55,7 +55,7 @@ export {
   resolveScale,
   toUnifiedNumber,
   type Scale,
-} from "./money.js";
+} from "./money";
 
 // ---------------------------------------------------------------------------
 // Configuration

@@ -1,5 +1,4 @@
 import type { StructuredProductQuote } from './types';
-import { DEFAULT_QUOTE_ENVELOPE_SLIPPAGE_BPS, DEFAULT_QUOTE_ENVELOPE_TTL_MS } from './quoteEnvelope';
 
 export interface DualInvestmentRiskMetrics {
   minimumPayout: number;
@@ -16,6 +15,10 @@ function clampTiny(value: number) {
   if (Math.abs(value) < 0.0000000001) return 0;
   return Number(value.toFixed(12));
 }
+
+/** Quote freshness window and slippage bound, formerly in the Sui quoteEnvelope. */
+const DEFAULT_QUOTE_ENVELOPE_TTL_MS = 30_000;
+const DEFAULT_QUOTE_ENVELOPE_SLIPPAGE_BPS = 100;
 
 export function riskMetricsForDualInvestmentQuote(quote: StructuredProductQuote): DualInvestmentRiskMetrics {
   const minimumPayout = quote.reserve + quote.coupon;

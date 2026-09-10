@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DAY_MS } from '../products/tenorMarkets';
+import { DAY_MS } from '../products/units';
 import type { BenchmarkMatchStatus, BenchmarkSampleSource } from './buildBenchmarkRun';
 import { aggregateHeadlineStats } from './aggregateHeadlineStats';
 import type { TimestampedSample } from './store';

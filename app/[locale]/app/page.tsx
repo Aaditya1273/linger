@@ -1,6 +1,6 @@
-import { DualInvestmentPage } from '../../../src/components/DualInvestmentPage';
-import { normalizeLocale } from '../../../src/i18n';
+import { redirect } from 'next/navigation';
+import { localizedPath, normalizeLocale } from '../../../src/i18n';
 
 export default function Page({ params }: { params: { locale: string } }) {
-  return <DualInvestmentPage locale={normalizeLocale(params.locale)} />;
+  redirect(localizedPath(normalizeLocale(params.locale), '/app/dual-investment'));
 }

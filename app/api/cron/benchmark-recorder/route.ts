@@ -1,13 +1,22 @@
 import { ANALYTICS_RECORDER_PAUSED } from '../../../../src/recorder/analyticsSnapshot';
 import { authorizeCronRequest } from '../../../../src/recorder/cronAuth';
-import { ensureBenchmarkSchema } from '../../../../src/recorder/ensureSchema';
-import { executeBenchmarkSweep } from '../../../../src/recorder/executeBenchmarkSweep';
-import { createGitHubAlertIssuePosterFromEnv } from '../../../../src/recorder/githubAlertIssues';
-import { createNeonBenchmarkRunStore } from '../../../../src/recorder/neonStore';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
+/**
+ * Benchmark Recorder sweep endpoint — paused.
+ *
+ * DreamDEX Shannon tops out at a ~2.7h tenor and Binance Dual Investment is a
+ * day-scale product, so no ladder row has anything to pair with. Rather than
+ * insert empty Runs that would permanently zero the leading-streak aggregation,
+ * recording stays off behind a git-tracked flag and Analytics serves the stored
+ * samples as a closed observation window (ADR-0013). The vercel.json cron entry
+ * is removed to match; this gate stops a stray manual invocation.
+ *
+ * Recording reopens when day-scale markets exist: flip the flag, restore the
+ * cron entry, and reinstate a sweep builder for the live venue.
+ */
 export async function GET(request: Request) {
   const authorized = authorizeCronRequest({
     authorizationHeader: request.headers.get('authorization'),
@@ -17,44 +26,19 @@ export async function GET(request: Request) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // The vercel.json cron entry is removed while paused; this gate keeps a
-  // stray manual invocation from inserting empty Runs into the archive.
   if (ANALYTICS_RECORDER_PAUSED) {
     return Response.json(
-      { error: 'Benchmark Recorder is paused: the current deployment has no day shelf to sample (ADR-0013).' },
+      {
+        error:
+          'Benchmark Recorder is paused: DreamDEX Shannon has no day-scale shelf to sample against ' +
+          'Binance Dual Investment (ADR-0013). Analytics serves the stored observation window.',
+      },
       { status: 503 },
     );
   }
 
-  const databaseUrl = process.env.DATABASE_URL?.trim();
-  if (!databaseUrl) {
-    return Response.json({ error: 'DATABASE_URL is not configured' }, { status: 500 });
-  }
-
-  try {
-    // Marketplace DATABASE_URL cannot be pulled via CLI; first hit creates tables.
-    await ensureBenchmarkSchema(databaseUrl);
-    const store = createNeonBenchmarkRunStore(databaseUrl);
-    const alertPoster = createGitHubAlertIssuePosterFromEnv({
-      token: process.env.GITHUB_ALERTS_TOKEN,
-      repository: process.env.GITHUB_ALERTS_REPO,
-    });
-    const result = await executeBenchmarkSweep({ store, alertPoster });
-    return Response.json({
-      outcome: result.persist.outcome,
-      runId: result.persist.runId,
-      boundaryMs: result.run.boundaryMs,
-      status: result.run.status,
-      durationMs: result.run.durationMs,
-      sampleCount: result.samples.length,
-      headlineEligibleCount: result.samples.filter((s) => s.headlineEligible).length,
-    });
-  } catch (error) {
-    return Response.json(
-      {
-        error: error instanceof Error ? error.message : 'Benchmark Recorder sweep failed.',
-      },
-      { status: 500 },
-    );
-  }
+  return Response.json(
+    { error: 'No sweep builder is wired for the current venue.' },
+    { status: 501 },
+  );
 }

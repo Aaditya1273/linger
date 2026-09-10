@@ -33,6 +33,23 @@ describe('quality guardrails', () => {
     expect(findings.map((f) => f.ruleId)).toEqual(['no-localhost-site-url-fallback']);
   });
 
+  it('bites on the three Somnia boundary rules', () => {
+    // The Sui guardrails rotted into regexes that could never match. Assert
+    // each new rule actually fires, and that the legitimate chain-definition
+    // import does not.
+    const findings = scanForbiddenPatterns([
+      { filePath: 'packages/dex/src/index.ts', text: 'const cost = qty * 0.85;' },
+      { filePath: 'src/components/BuyLowPage.tsx', text: "import { SomniaMarkets } from '@somnia-chain/markets-sdk';" },
+      { filePath: 'src/wallet/config.ts', text: "const pool = '0x70a86D8842FB63C4Ad2b7cdddF530eBf1BB25d8E';" },
+      { filePath: 'src/wallet/config.ts', text: "import { somniaShannon } from '@somnia-chain/markets-sdk/chains';" },
+    ]);
+    expect(findings.map((f) => f.ruleId)).toEqual([
+      'no-float-money-in-dex',
+      'no-dreamdex-io-outside-dex',
+      'no-hardcoded-addresses',
+    ]);
+  });
+
   it('scans the dex package but never its own fixture file', () => {
     expect(shouldScanPath('packages/dex/src/index.ts')).toBe(true);
     expect(shouldScanPath('scripts/quality-gates.test.mjs')).toBe(false);

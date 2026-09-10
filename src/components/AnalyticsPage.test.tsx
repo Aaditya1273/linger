@@ -66,7 +66,7 @@ describe('AnalyticsPage', () => {
     // Edge chart: the archive keeps rendering; every Track is Archived.
     expect(screen.getByRole('region', { name: 'Edge Track' })).toBeVisible();
     expect(screen.getByRole('heading', { name: 'Edge over time' })).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Expiry Market' })).toBeVisible();
+    expect(screen.getByRole('combobox', { name: 'Expiry Market' })).toBeVisible();
     expect(screen.getByText('Archived')).toBeVisible();
     expect(screen.getByText('Min–max across ladder rows')).toBeVisible();
 

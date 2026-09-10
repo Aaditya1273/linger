@@ -47,7 +47,8 @@ describe('loadAnalyticsStats', () => {
     }
   });
 
-  it('reports not_configured when Neon is absent outside fixture mode', async () => {
+  it('reports not_configured only when the archive fallback is explicitly disabled', async () => {
+    vi.stubEnv('ANKER_ANALYTICS_FIXTURES', 'false');
     vi.stubEnv('ANKER_DETERMINISTIC_E2E', 'false');
     vi.stubEnv('NEXT_PUBLIC_ANKER_DETERMINISTIC_E2E', 'false');
     vi.stubEnv('DATABASE_URL', '');

@@ -13,7 +13,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { DAY_MS } from '../products/tenorMarkets';
+import { DAY_MS } from '../products/units';
 import type { EdgeTrack, EdgeTrackPoint, EdgeTracks } from '../recorder/buildEdgeTracks';
 import {
   copyForLocale,
@@ -24,7 +24,6 @@ import {
   type Locale,
 } from '../i18n';
 import { Badge, type Tone } from '../ui';
-import { SheetSelect, type SheetSelectOption } from './SheetSelect';
 
 const HOUR_MS = 3_600_000;
 const STATUS_TONE: Record<EdgeTrack['status'], Tone> = {
@@ -317,6 +316,41 @@ function TrackChart({
   );
 }
 
+/** Native grouped select — the mobile sheet variant left with the Sui UI. */
+export interface SheetSelectOption {
+  id: string;
+  primary: string;
+  secondary?: string;
+}
+
+function NativeSelect(props: {
+  value: string;
+  onSelect: (id: string) => void;
+  label: string;
+  closeLabel: string;
+  triggerValue: string;
+  groups: ReadonlyArray<{ key: string; label: string; options: SheetSelectOption[] }>;
+}) {
+  return (
+    <select
+      className="edge-select"
+      aria-label={props.label}
+      value={props.value}
+      onChange={(event) => props.onSelect(event.target.value)}
+    >
+      {props.groups.map((group) => (
+        <optgroup key={group.key} label={group.label}>
+          {group.options.map((option) => (
+            <option key={option.id} value={option.id}>
+              {option.secondary ? `${option.primary} · ${option.secondary}` : option.primary}
+            </option>
+          ))}
+        </optgroup>
+      ))}
+    </select>
+  );
+}
+
 export function EdgeChart({
   edgeTracks,
   snapshot = false,
@@ -389,9 +423,9 @@ export function EdgeChart({
           <div className="analytics-track-controls">
             <div className="analytics-track-select">
               <span className="di-select-label">{copy.analytics.marketSelectLabel}</span>
-              <SheetSelect
+              <NativeSelect
                 value={String(selected.settlementMs)}
-                onSelect={(id) => setSelectedSettlementMs(Number(id))}
+                onSelect={(id: string) => setSelectedSettlementMs(Number(id))}
                 label={copy.analytics.marketSelectLabel}
                 closeLabel={copy.common.close}
                 triggerValue={trackOptionLabel(selected, locale, timeZone)}
