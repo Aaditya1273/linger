@@ -2,11 +2,12 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useAccount, useBalance } from 'wagmi';
+import { useAccount, useBalance, useWalletClient, useWriteContract } from 'wagmi';
 import { AlertTriangle, Droplet, RefreshCw } from 'lucide-react';
 import { compileBuyLow, type BuyLowQuote } from '../products/buyLow';
 import { copyForLocale, DEFAULT_LOCALE, type Locale } from '../i18n';
-import { FAUCET_STT, SOMNIA_CHAIN } from '../wallet/config';
+import { FAUCET_STT, SOMNIA_CHAIN, explorerTx } from '../wallet/config';
+import { ANKER_NOTE_ABI, ANKER_NOTE_ADDRESS, isNoteContractConfigured } from '../wallet/ankerNote';
 import { AppFooter } from './AppFooter';
 import { AppHeader } from './AppHeader';
 import { Badge, Button, Card, Stat, StatGroup } from '../ui';
@@ -16,6 +17,7 @@ const FEE_BPS = 1_000;
 
 interface MarketRow {
   marketId: string;
+  asset: string;
   symbol: string;
   upSymbol: string;
   strikeRaw: string;
@@ -243,7 +245,12 @@ export function BuyLowPage({ locale = DEFAULT_LOCALE }: { locale?: Locale }) {
               <p className="di-error"><AlertTriangle size={15} /> Switch to Somnia Shannon to subscribe.</p>
             )}
 
-            <SubscribeButton quote={quote} connected={isConnected && !wrongNetwork && !needsGas} />
+            <SubscribeButton
+              quote={quote}
+              market={selected}
+              decimals={decimals}
+              connected={isConnected && !wrongNetwork && !needsGas}
+            />
           </Card>
         )}
       </main>
@@ -253,21 +260,133 @@ export function BuyLowPage({ locale = DEFAULT_LOCALE }: { locale?: Locale }) {
 }
 
 /**
- * Duplicate-submit guard: the button disables for the whole in-flight window,
- * and the idempotency key is (wallet, market, expiry) so a double click inside
- * one market window cannot place two orders.
+ * Subscribe: cross the DreamDEX leg, then mint the AnkerNote receipt.
+ *
+ * Order matters. The leg is the real position; the note only records a trade
+ * that already happened. Minting first would leave a receipt for a position
+ * that may never have filled — an IOC that finds no ask fails, and that has to
+ * read as FAILED, not as an open Position.
+ *
+ * Duplicate-submit guard: the button is disabled for the whole in-flight
+ * window, and `idempotencyKey` is (wallet, market, expiry) so a double click
+ * inside one market window cannot place two orders.
  */
-function SubscribeButton({ quote, connected }: { quote: BuyLowQuote; connected: boolean }) {
+function SubscribeButton({
+  quote,
+  market,
+  decimals,
+  connected,
+}: {
+  quote: BuyLowQuote;
+  market: MarketRow;
+  decimals: number;
+  connected: boolean;
+}) {
+  const { address } = useAccount();
+  const { data: walletClient } = useWalletClient();
+  const { writeContractAsync } = useWriteContract();
   const [pending, setPending] = useState(false);
+  const [result, setResult] = useState<{ ok: boolean; message: string; hash?: string } | null>(null);
+  const [submitted, setSubmitted] = useState<Set<string>>(new Set());
+
+  const idempotencyKey = `${address ?? ''}:${market.marketId}:${market.expirySec}`;
+  const alreadySubmitted = submitted.has(idempotencyKey);
+
+  async function subscribe() {
+    if (!walletClient || !address || alreadySubmitted) return;
+    setPending(true);
+    setResult(null);
+    setSubmitted((prev) => new Set(prev).add(idempotencyKey));
+    try {
+      const { placeBrowserBuyIOC } = await import('@anker/dex/browser');
+      const one = 10n ** BigInt(decimals);
+      // Cross buffer: 200 bps of one whole outcome token, clamped at the ceiling.
+      const limitRaw = (() => {
+        const ask = BigInt(market.askRaw ?? '0');
+        const buffered = ask + (one * 200n) / 10_000n;
+        return buffered > one ? one : buffered;
+      })();
+
+      const fill = await placeBrowserBuyIOC({
+        walletClient,
+        indexerUrl: process.env.NEXT_PUBLIC_INDEXER_URL ?? '',
+        wsRpcUrl: process.env.NEXT_PUBLIC_WS_RPC ?? '',
+        market: {
+          marketId: market.marketId as `0x${string}`,
+          symbol: market.symbol,
+          asset: market.asset,
+          strikeRaw: market.strikeRaw,
+          mode: 'fixed',
+          tradingStartSec: 0,
+          expirySec: market.expirySec,
+          collateral: market.collateral as `0x${string}`,
+          indexedStatus: 'Trading',
+        },
+        quantityRaw: quote.quantityRaw,
+        limitPriceRaw: limitRaw,
+      });
+
+      if (fill.outcome === 'FAILED') {
+        setResult({ ok: false, message: fill.reason ?? 'Order failed.', ...(fill.transactionHash ? { hash: fill.transactionHash } : {}) });
+        // A failed leg frees the key: the user may legitimately retry the next window.
+        setSubmitted((prev) => {
+          const next = new Set(prev);
+          next.delete(idempotencyKey);
+          return next;
+        });
+        return;
+      }
+
+      if (!isNoteContractConfigured()) {
+        setResult({ ok: true, message: 'Leg filled. AnkerNote not deployed for this environment, so no receipt was minted.', ...(fill.transactionHash ? { hash: fill.transactionHash } : {}) });
+        return;
+      }
+
+      const noteHash = await writeContractAsync({
+        abi: ANKER_NOTE_ABI,
+        address: ANKER_NOTE_ADDRESS as `0x${string}`,
+        functionName: 'subscribe',
+        args: [
+          quote.principalRaw,
+          quote.reserveRaw,
+          quote.couponRaw,
+          BigInt(market.strikeRaw),
+          BigInt(market.strikeRaw),
+          BigInt(quote.netAprBps),
+          BigInt(market.expirySec),
+          [market.marketId],
+          [fill.filledRaw],
+          [quote.legCostRaw],
+        ],
+      });
+      setResult({ ok: true, message: 'Subscribed. AnkerNote minted.', hash: noteHash });
+    } catch (error) {
+      setResult({ ok: false, message: error instanceof Error ? error.message : 'Subscribe failed.' });
+      setSubmitted((prev) => {
+        const next = new Set(prev);
+        next.delete(idempotencyKey);
+        return next;
+      });
+    } finally {
+      setPending(false);
+    }
+  }
+
   return (
-    <Button
-      disabled={!connected || !quote.executable || pending}
-      onClick={() => {
-        setPending(true);
-        setTimeout(() => setPending(false), 2_000);
-      }}
-    >
-      {pending ? 'Submitting…' : connected ? 'Subscribe' : 'Connect wallet to subscribe'}
-    </Button>
+    <>
+      <Button disabled={!connected || !quote.executable || pending || alreadySubmitted} onClick={subscribe}>
+        {pending ? 'Submitting…' : alreadySubmitted ? 'Submitted for this window' : connected ? 'Subscribe' : 'Connect wallet to subscribe'}
+      </Button>
+      {result && (
+        <p className={result.ok ? 'di-hint' : 'di-error'}>
+          {result.message}{' '}
+          {result.hash && (
+            <a href={explorerTx(result.hash)} target="_blank" rel="noreferrer">
+              View transaction
+            </a>
+          )}
+        </p>
+      )}
+    </>
   );
 }

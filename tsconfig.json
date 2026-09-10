@@ -32,6 +32,9 @@
     "paths": {
       "@anker/dex": [
         "./packages/dex/src/index.ts"
+      ],
+      "@anker/dex/browser": [
+        "./packages/dex/src/browser.ts"
       ]
     }
   },
