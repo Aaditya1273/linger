@@ -1,12 +1,20 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
-  "regions": ["iad1"],
+  "regions": [
+    "iad1"
+  ],
   "crons": [],
   "headers": [
     {
       "source": "/api/(.*)",
-      "headers": [{ "key": "x-content-type-options", "value": "nosniff" }]
+      "headers": [
+        {
+          "key": "x-content-type-options",
+          "value": "nosniff"
+        }
+      ]
     }
-  ]
+  ],
+  "installCommand": "npm install --legacy-peer-deps"
 }

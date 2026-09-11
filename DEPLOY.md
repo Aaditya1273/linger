@@ -1,6 +1,22 @@
 # Deploying to Vercel
 
-## 1 · Import the repo
+## Fastest path (CLI)
+
+```bash
+vercel login                      # interactive — do this first
+bash scripts/vercel-setup.sh      # links the project and pushes all 10 env vars
+vercel --prod
+```
+
+The setup script is idempotent and never sends `BURNER_PRIVATE_KEY`. After the
+first deploy, correct `NEXT_PUBLIC_SITE_URL` to the real alias and redeploy —
+`NEXT_PUBLIC_*` values are baked in at build time.
+
+---
+
+## Or via the dashboard
+
+### 1 · Import the repo
 
 Vercel → **Add New… → Project** → import `Aaditya1273/linger` → Framework preset
 **Next.js** (detected). Leave build and output settings at their defaults; the
@@ -39,16 +55,12 @@ uses.
 dashboard offers a Node version, pick **22.x**. Node 25+ breaks the jsdom-based
 tests (`window.localStorage` is undefined there).
 
-## 4 · Install command
+## 4 · Install command — already handled
 
-The dependency tree needs `--legacy-peer-deps` (wagmi's connector barrel pulls an
-optional peer set npm cannot resolve cleanly). Set **Install Command** to:
-
-```
-npm install --legacy-peer-deps
-```
-
-Without this the build fails at install with an arborist `edgesOut` error.
+`vercel.json` pins `installCommand: npm install --legacy-peer-deps`. The tree needs
+it: wagmi's connector barrel pulls an optional peer set npm cannot resolve cleanly,
+and without the flag the build dies at install with an arborist `edgesOut` error.
+Nothing to configure in the dashboard.
 
 ## 5 · Deploy
 
