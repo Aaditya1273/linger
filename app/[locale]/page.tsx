@@ -1,7 +1,13 @@
-import { redirect } from 'next/navigation';
-import { localizedPath, normalizeLocale } from '../../src/i18n';
+import { LandingPage } from '../../src/components/LandingPage';
+import { WalletGate } from '../../src/components/WalletGate';
+import { normalizeLocale } from '../../src/i18n';
 
-/** The product is the landing: the root routes straight to the live ladder. */
 export default function Page({ params }: { params: { locale: string } }) {
-  redirect(localizedPath(normalizeLocale(params.locale), '/app/dual-investment'));
+  const locale = normalizeLocale(params.locale);
+  return (
+    <>
+      <WalletGate locale={locale} mode="landing" />
+      <LandingPage locale={locale} />
+    </>
+  );
 }

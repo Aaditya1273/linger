@@ -4,6 +4,7 @@ import { localizedPath } from './src/i18n/routes';
 
 const LEGACY_PATH_REDIRECTS: Record<string, string> = {
   '/': '/',
+
   '/app': '/app',
   '/app/dual-investment': '/app/dual-investment',
   '/app/portfolio': '/app/portfolio',

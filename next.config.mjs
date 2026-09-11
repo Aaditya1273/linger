@@ -39,16 +39,14 @@ const nextConfig = {
     },
   },
   /**
-   * The product is the landing. Root redirects live here (not in a page):
-   * a statically prerendered redirect() page emits a 307 with no Location
-   * header, which curl and some crawlers cannot follow. Config redirects are
-   * served from the routing layer before any rendering.
+   * `/` carries no locale, so it redirects to the default one. `/:locale` is
+   * now the LANDING page rather than the ladder: the app itself is behind a
+   * wallet connection, so an unauthenticated visitor needs somewhere to land.
+   * Kept in config rather than a page because a prerendered `redirect()` emits
+   * a 307 with no Location header, which curl and some crawlers cannot follow.
    */
   async redirects() {
-    return [
-      { source: '/', destination: '/en/app/dual-investment', permanent: false },
-      { source: '/:locale(en|zh-CN)', destination: '/:locale/app/dual-investment', permanent: false },
-    ];
+    return [{ source: '/', destination: '/en', permanent: false }];
   },
 };
 
