@@ -102,7 +102,16 @@ constraints, disclosed in the product, not gaps someone found.
 | **AnkerNote** | [`0x863b54bb…52e3`](https://shannon-explorer.somnia.network/address/0x863b54bb144cec7ae73d56983193e2e5a60652e3) — `name() = "Anker Note"`, `symbol() = "ANKER"`, `feeBps() = 1000` |
 | **Deploy tx** | [`0x442536b7…139b`](https://shannon-explorer.somnia.network/tx/0x442536b7245a17d9e775fa62a642a845fea438f081382eba851f7b5f8787139b) — SUCCESS, block 485300023 |
 | **Real IOC order** | [`0x2d9d2788…5f46`](https://shannon-explorer.somnia.network/tx/0x2d9d2788b74f8c8e916e07c4f4de8605b3da22f959b25f46c8e581466b985f46) — SUCCESS, block 485302552, filled 1 YES @ 0.968 |
+| **Note minted** | [`0xf3afbcef…285f`](https://shannon-explorer.somnia.network/tx/0xf3afbcef3643fafd60a35da4c1b7818c566bf7b0f91111ed18f39ef77069285f) — Note #1, principal 100 USDso, coupon 0.352941, feeBps snapshot 1000 |
+| **Note claimed** | [`0x6fedd020…10b8`](https://shannon-explorer.somnia.network/tx/0x6fedd020b5f49d8a342c5d8f10d85f0fea1d0b8df006c0702e64108bb5ff10b8) — status 0→1 Redeemed, fee of 35,294 pulled by the contract (exactly 10% of coupon) |
 | Deployer / signer | `0xf691DBca14ad7733B7266b6B0c512B317843102f` |
 
-**Use the IOC order hash in the demo video** — it is the proof that the write path
-is real, not a mock.
+**Use these hashes in the demo video** — they prove the write path is real, not a
+mock. `npm run note:lifecycle` reproduces the mint→claim pair end to end and
+prints fresh links.
+
+The claim tx is the one to linger on: the 35,294 fee inside it was computed and
+pulled *by the contract* from the note's own snapshot. The Move original took the
+fee as a caller-supplied coin and never checked its value, so a hand-built
+transaction paid zero. That is a real bug found and fixed during the port, and it
+is visible in a block explorer.

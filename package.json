@@ -20,7 +20,8 @@
     "lint": "npm run typecheck && npm run lint:guardrails",
     "lint:guardrails": "node scripts/quality-gates.mjs",
     "contract:build": "node scripts/build-contract.mjs",
-    "contract:deploy": "tsx scripts/deploy.ts"
+    "contract:deploy": "tsx scripts/deploy.ts",
+    "note:lifecycle": "tsx scripts/note-lifecycle.ts"
   },
   "dependencies": {
     "@anker/dex": "0.1.0",
