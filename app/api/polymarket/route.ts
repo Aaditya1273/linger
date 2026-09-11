@@ -1,6 +1,8 @@
 import { fetchPolymarketBtcThresholds } from '../../../src/benchmark/polymarket';
 
 export const dynamic = 'force-dynamic';
+/** Upstream-bound; the default 10s ceiling is too tight for a cold container. */
+export const maxDuration = 20;
 
 const TTL_MS = 30_000;
 let cache: { expiresAt: number; payload: unknown } | null = null;

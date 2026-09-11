@@ -35,6 +35,8 @@ interface MarketRow {
 interface MarketsResponse {
   serverTimeMs: number;
   markets: MarketRow[];
+  /** Route is still warming its connection to DreamDEX; retry shortly. */
+  warming?: boolean;
   /** True when the route served its last good payload while refreshing behind it. */
   stale?: boolean;
   ageMs?: number;
@@ -85,8 +87,15 @@ export function BuyLowPage({ locale = DEFAULT_LOCALE }: { locale?: Locale }) {
     queryKey: ['dreamdex-markets'],
     queryFn: async () => {
       const res = await fetch('/api/markets');
-      return (await res.json()) as MarketsResponse;
+      const body = (await res.json()) as MarketsResponse;
+      // A warming route is a retry signal, not a result: throwing hands it to
+      // react-query's backoff instead of rendering an empty ladder as if the
+      // venue had no markets.
+      if (body.warming) throw new Error('warming');
+      return body;
     },
+    retry: 8,
+    retryDelay: (attempt) => Math.min(2_000 * (attempt + 1), 6_000),
     refetchInterval: 10_000,
   });
 
@@ -193,8 +202,10 @@ export function BuyLowPage({ locale = DEFAULT_LOCALE }: { locale?: Locale }) {
                 slow right now and a refresh is in flight. Subscribe re-checks the market on-chain before signing.
               </p>
             )}
-            {marketsQuery.isLoading ? (
-              <p className="di-hint">Loading live Event Contracts…</p>
+            {marketsQuery.isLoading || marketsQuery.isFetching && markets.length === 0 ? (
+              <p className="di-hint">
+                Connecting to DreamDEX… the first read after a cold start takes a few seconds. This retries on its own.
+              </p>
             ) : markets.length === 0 ? (
               <p className="di-hint">
                 No BTC market is live on-chain right now. Shannon markets live about a minute — this refreshes every 10s.

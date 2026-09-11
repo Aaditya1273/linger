@@ -10,6 +10,45 @@ import {
 } from '@anker/dex';
 
 export const dynamic = 'force-dynamic';
+/**
+ * Serverless duration. The DreamDEX indexer can take ~7s on a good call and
+ * occasionally connect-times-out, so the default 10s ceiling is not enough
+ * headroom for a cold container. The hard budget below means we never actually
+ * need this much — it exists so a slow upstream degrades instead of 504-ing.
+ */
+export const maxDuration = 30;
+
+/**
+ * Hard budget for a cold build. Whatever has not arrived by now is abandoned and
+ * the route answers with stale data (or an honest empty list) rather than being
+ * killed by the platform. A 504 tells the client nothing; an empty list with an
+ * error field renders a real message.
+ */
+/**
+ * Measured cold vs warm, same container:
+ *
+ *   pass 1 (cold)  13.5s   ← RPC connection + SDK ABI/module resolution
+ *   pass 2 (warm)   1.2s
+ *   pass 3 (warm)   0.4s   (a single eth_call is ~0.4s)
+ *
+ * So the expensive part is a ONE-OFF per container, not per request. No request
+ * should ever wait for it: 13.5s exceeds a 10s serverless ceiling, and a request
+ * killed by the platform returns a 504 that tells the client nothing.
+ *
+ * Instead a request with nothing cached waits only long enough to catch a lucky
+ * fast build, then answers 503 + `retry-after` while the refresh continues in the
+ * background. The client retries and lands on a warm cache. Total time to first
+ * data is the same; the difference is that it arrives as data rather than as a
+ * gateway timeout.
+ */
+const BUDGET_MS = 1_500;
+
+function withBudget<T>(work: Promise<T>, ms: number): Promise<T | null> {
+  return Promise.race([
+    work,
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), ms)),
+  ]);
+}
 
 /**
  * Live, tradable BTC Event Contracts with their best ask.
@@ -62,7 +101,7 @@ async function buildPayload(): Promise<Payload> {
   const candidates = markets
     .filter((m) => m.mode === 'fixed' && m.expirySec > nowSec)
     .sort((a, b) => a.expirySec - b.expirySec)
-    .slice(0, 8);
+    .slice(0, 6);
 
   // Enrich in parallel: sequentially this was ~16 round-trips of several hundred
   // ms each, and the result was stale before it finished assembling.
@@ -112,6 +151,11 @@ function kickRefresh(): Promise<void> {
   return refreshing;
 }
 
+// Start warming the moment the container boots rather than when the first
+// request arrives, so the one-off ~7s connection cost overlaps with cold start
+// instead of being added to it. Fire-and-forget by design.
+void kickRefresh();
+
 export async function GET() {
   const now = Date.now();
 
@@ -129,20 +173,22 @@ export async function GET() {
     );
   }
 
-  // Cold start only: nothing cached, so this one has to wait.
-  try {
-    await kickRefresh();
-    const warmed = getLastGood();
-    if (!warmed) throw new Error('DreamDEX indexer did not respond.');
+  // Cold start only: nothing cached, so this one has to wait — but not forever.
+  // The refresh keeps running in the background past the budget, so the next
+  // request usually finds it warm even when this one gave up.
+  await withBudget(kickRefresh(), BUDGET_MS);
+  const warmed = getLastGood();
+  if (warmed) {
     return Response.json(warmed.payload, { headers: { 'cache-control': 's-maxage=4' } });
-  } catch (error) {
-    return Response.json(
-      {
-        error: error instanceof Error ? error.message : 'DreamDEX market read failed.',
-        serverTimeMs: Date.now(),
-        markets: [],
-      },
-      { status: 502 },
-    );
   }
+
+  return Response.json(
+    {
+      warming: true,
+      error: 'Connecting to DreamDEX. This takes a few seconds on a cold start; retrying automatically.',
+      serverTimeMs: Date.now(),
+      markets: [],
+    },
+    { status: 503, headers: { 'retry-after': '2', 'cache-control': 'no-store' } },
+  );
 }

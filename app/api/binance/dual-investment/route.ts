@@ -4,6 +4,8 @@ import {
 } from '../../../../src/benchmark/binanceDualInvestment';
 
 export const dynamic = 'force-dynamic';
+/** Upstream-bound; the default 10s ceiling is too tight for a cold container. */
+export const maxDuration = 20;
 
 const CACHE_TTL_MS = 15_000;
 const CACHE_CONTROL = 's-maxage=15, stale-while-revalidate=30';

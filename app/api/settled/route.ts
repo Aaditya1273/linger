@@ -1,6 +1,8 @@
 import { configFromEnv, createDex, scanSettled } from '@anker/dex';
 
 export const dynamic = 'force-dynamic';
+/** Upstream-bound; the default 10s ceiling is too tight for a cold container. */
+export const maxDuration = 20;
 
 /** Recently settled markets — the redeem side of "markets die and respawn". */
 export async function GET() {
