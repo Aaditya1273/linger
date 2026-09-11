@@ -332,3 +332,78 @@ main.dual-page {
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: var(--space-4);
 }
+
+/* --- badges inside the market table -------------------------------------- */
+/*
+ * `.offer-table td span { display: block }` in styles.css (a Sui-era rule for
+ * stacked secondary lines) outranks `.anker-badge { display: inline-flex }`,
+ * because `.offer-table td span` is more specific. The pill then became a block
+ * sized to the cell while its nowrap label stayed wider — so "-58.3 pts*" spilled
+ * straight through the pill's border.
+ *
+ * Restore inline sizing for badges specifically, and leave the stacked-span
+ * behaviour intact for the secondary lines that actually want it.
+ */
+.offer-table td .anker-badge {
+  display: inline-flex;
+  width: auto;
+  max-width: none;
+  font-size: 11.5px;
+  padding: 3px 10px;
+}
+
+/* Give the benchmark columns room so a badge is never the thing that has to
+   shrink. Edge is the number a reader compares across rows — it must not wrap. */
+.offer-table th:nth-child(6),
+.offer-table td:nth-child(6) { min-width: 132px; }
+.offer-table th:nth-child(7),
+.offer-table td:nth-child(7) { min-width: 104px; }
+
+/* The Polymarket cell stacks a price over its offsets; keep the offsets quiet
+   and on their own line rather than fighting the price for the same baseline. */
+.offer-table td .muted {
+  display: block;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--ink-soft);
+}
+
+/* --- header / footer alignment ------------------------------------------- */
+/*
+ * The bar stays full-bleed (its background and bottom border reach the viewport
+ * edges) while its contents sit in the same 1180px column as the page. Before
+ * this the brand sat at x=28 against content at x=357 — a 330px mismatch that
+ * made the header look like it belonged to a different page.
+ */
+.top-nav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--paper);
+  border-bottom: 2px solid var(--navy);
+  padding: 0;
+}
+.top-nav-inner {
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: var(--space-3) var(--space-6);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-5);
+}
+@media (max-width: 640px) {
+  .top-nav-inner { padding: var(--space-3) var(--space-4); gap: var(--space-3); }
+}
+
+/* The footer follows the same column, so the page has one left edge top to bottom. */
+.app-footer {
+  width: 100% !important;
+  max-width: 1180px !important;
+  margin: 0 auto !important;
+  padding: var(--space-6) var(--space-6) !important;
+}
+@media (max-width: 640px) {
+  .app-footer { padding: var(--space-5) var(--space-4) !important; }
+}

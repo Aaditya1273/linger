@@ -28,6 +28,11 @@ export function AppHeader({
   const copy = copyForLocale(locale);
   return (
     <header className="top-nav">
+      {/* Inner container: the bar itself is full-bleed so its background and
+          border reach the viewport edges, but its CONTENTS align to the same
+          1180px column as the page below. Without this the brand sat at x=28
+          while the content started at x=357, and the app read as two layouts. */}
+      <div className="top-nav-inner">
       <Link className="brand-mark" href={localizedPath(locale, '/app')}>
         <span className="anchor-mark" />
         {/* Own span so the wordmark can ellipsize instead of sliding under
@@ -66,6 +71,7 @@ export function AppHeader({
         <div className="wallet-area">
           <WalletButton />
         </div>
+      </div>
       </div>
     </header>
   );
