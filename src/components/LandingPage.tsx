@@ -4,11 +4,36 @@ import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowUpRight, BookOpen, Layers, LineChart, Lock, ShieldCheck, Zap } from 'lucide-react';
 import Link from 'next/link';
-import { useScrollReveal } from '../hooks/useScrollReveal';
+import { useScrollMotion } from '../hooks/useScrollMotion';
 import { copyForLocale, DEFAULT_LOCALE, localizedPath, type Locale } from '../i18n';
 import { EXPLORER, SOMNIA_CHAIN } from '../wallet/config';
 import { ANKER_NOTE_ADDRESS, isNoteContractConfigured } from '../wallet/ankerNote';
 import { SocialLinks } from './SocialLinks';
+
+/**
+ * Split a line into per-word spans so the headline can land word by word.
+ * Index drives the CSS animation-delay, so the stagger lives in the stylesheet.
+ */
+function Words({ text, from = 0 }: { text: string; from?: number }) {
+  return (
+    <>
+      {text.split(' ').map((word, index) => (
+        <span key={`${word}-${index}`} className="lp-word" style={{ '--i': from + index } as React.CSSProperties}>
+          {word}
+          {index < text.split(' ').length - 1 ? '\u00A0' : ''}
+        </span>
+      ))}
+    </>
+  );
+}
+
+/** The venues this product actually stands on — presented as roles, not logos. */
+const VENUE_MARKS = [
+  { role: 'Execution venue', name: 'DreamDEX', note: 'Event Contracts — the legs', live: true },
+  { role: 'Settlement layer', name: 'Somnia', note: 'Shannon testnet · 50312', live: true },
+  { role: 'Benchmarked vs', name: 'Polymarket', note: 'Same-question probability', live: true },
+  { role: 'Benchmarked vs', name: 'Binance', note: 'Dual Investment APR', live: false },
+] as const;
 
 /** Proven on-chain — the real artefacts, not placeholders. */
 const PROOF = {
@@ -21,7 +46,7 @@ interface MarketsResponse {
 }
 
 export function LandingPage({ locale = DEFAULT_LOCALE }: { locale?: Locale }) {
-  useScrollReveal();
+  useScrollMotion();
   const copy = copyForLocale(locale);
   const appHref = localizedPath(locale, '/app/dual-investment');
   const analyticsHref = localizedPath(locale, '/analytics');
@@ -38,6 +63,7 @@ export function LandingPage({ locale = DEFAULT_LOCALE }: { locale?: Locale }) {
 
   return (
     <div className="page lp">
+      <div className="lp-progress" aria-hidden="true" />
       <nav className="lp-nav">
         <Link href={appHref} className="brand" style={{ textDecoration: 'none' }}>
           <span className="brand-word">Anker Protocol</span>
@@ -53,36 +79,40 @@ export function LandingPage({ locale = DEFAULT_LOCALE }: { locale?: Locale }) {
       </nav>
 
       <header className="lp-hero">
-        <span className="lp-orb lp-orb-a" aria-hidden="true" />
-        <span className="lp-orb lp-orb-b" aria-hidden="true" />
-        <span className="lp-orb lp-orb-c" aria-hidden="true" />
+        <span className="lp-orb lp-orb-a" data-parallax="orb" aria-hidden="true" />
+        <span className="lp-orb lp-orb-b" data-parallax="fast" aria-hidden="true" />
+        <span className="lp-orb lp-orb-c" data-parallax="orb" aria-hidden="true" />
         <div className="lp-shell">
-          <span className="lp-eyebrow reveal">
+          <span className="lp-eyebrow" data-reveal="down">
             <span className="dot" aria-hidden="true" />
             {liveCount === null
               ? `Live on ${SOMNIA_CHAIN.name}`
               : `${liveCount} live Event Contract${liveCount === 1 ? '' : 's'} on Somnia`}
           </span>
 
-          <h1 className="lp-title reveal" style={{ '--reveal-delay': '60ms' } as React.CSSProperties}>
-            Earn a coupon on USDso.
+          <h1 className="lp-title" data-parallax="slow">
+            <Words text="Earn a coupon on USDso." />
             <br />
-            <span className="accent">Keep your keys.</span>
+            <span className="accent">
+              <Words text="Keep your keys." from={4} />
+            </span>
           </h1>
 
-          <p className="lp-sub reveal" style={{ '--reveal-delay': '140ms' } as React.CSSProperties}>
+          <p className="lp-sub" data-reveal="up" style={{ '--d': '520ms' } as React.CSSProperties}>
             Dual Investment — the structured-yield product every major exchange sells — rebuilt on Somnia from DreamDEX
             Event Contracts. Your principal never enters an Anker account, your downside is capped before you sign, and
             every leg is a public order book you can inspect.
           </p>
 
-          <div className="lp-cta-row reveal" style={{ '--reveal-delay': '220ms' } as React.CSSProperties}>
-            <ConnectButton label="Connect wallet to start" showBalance={false} chainStatus="none" />
-            <Link href={analyticsHref} className="btn btn-secondary">
+          <div className="lp-cta-row" data-reveal="up" style={{ '--d': '640ms' } as React.CSSProperties}>
+            <span className="lp-cta-glow shine">
+              <ConnectButton label="Connect wallet to start" showBalance={false} chainStatus="none" />
+            </span>
+            <Link href={analyticsHref} className="btn btn-secondary shine">
               <LineChart size={16} /> See the benchmark
             </Link>
           </div>
-          <p className="lp-cta-note reveal" style={{ '--reveal-delay': '280ms' } as React.CSSProperties}>
+          <p className="lp-cta-note" data-reveal="up" style={{ '--d': '760ms' } as React.CSSProperties}>
             Any EVM wallet · no sign-up, no password · Somnia Shannon testnet ({SOMNIA_CHAIN.id})
           </p>
         </div>
@@ -103,9 +133,51 @@ export function LandingPage({ locale = DEFAULT_LOCALE }: { locale?: Locale }) {
         </div>
       </div>
 
+      <section className="lp-section" style={{ paddingBottom: 0 }}>
+        <div className="lp-shell">
+          <div className="lp-section-head" data-reveal="up">
+            <h2>What it actually stands on</h2>
+            <p>Four venues, four different jobs. No logo wall — each one says what it does here.</p>
+          </div>
+          <div className="lp-marks">
+            {VENUE_MARKS.map((mark, index) => (
+              <article
+                key={mark.name}
+                className={`lp-mark${mark.live ? ' is-live' : ''}`}
+                data-reveal={index % 2 === 0 ? 'left' : 'right'}
+                style={{ '--d': `${index * 110}ms` } as React.CSSProperties}
+              >
+                <span className="lp-mark-role">{mark.role}</span>
+                <span className="lp-mark-name">{mark.name}</span>
+                <span className="lp-mark-note">{mark.note}</span>
+              </article>
+            ))}
+          </div>
+
+          <div className="lp-rail" data-reveal="zoom" style={{ marginTop: 'var(--space-8)' }} data-parallax="slow">
+            <div className="lp-rail-item">
+              <span className="lp-rail-num" data-count-to="10899" data-count-duration="1400">0</span>
+              <span className="lp-rail-label">Benchmark samples recorded</span>
+            </div>
+            <div className="lp-rail-item">
+              <span className="lp-rail-num" data-count-to="98.2" data-count-decimals="1" data-count-suffix="%">0</span>
+              <span className="lp-rail-label">Of them ahead of Binance</span>
+            </div>
+            <div className="lp-rail-item">
+              <span className="lp-rail-num" data-count-to="2" data-count-suffix="%">0</span>
+              <span className="lp-rail-label">Max loss, capped by design</span>
+            </div>
+            <div className="lp-rail-item">
+              <span className="lp-rail-num" data-count-to="10" data-count-suffix="%">0</span>
+              <span className="lp-rail-label">Fee, on coupon only</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section className="lp-section" id="how">
         <div className="lp-shell">
-          <div className="lp-section-head reveal">
+          <div className="lp-section-head" data-reveal="up">
             <h2>Three steps, one transaction each</h2>
             <p>No deposits into a protocol account. No lock-up you cannot see the end of.</p>
           </div>
@@ -129,8 +201,10 @@ export function LandingPage({ locale = DEFAULT_LOCALE }: { locale?: Locale }) {
             ].map((step, index) => (
               <article
                 key={step.title}
-                className="lp-card reveal"
-                style={{ '--reveal-delay': `${index * 90}ms` } as React.CSSProperties}
+                className="lp-card"
+                data-reveal={index === 1 ? 'tilt' : index === 0 ? 'left' : 'right'}
+                data-parallax={index === 1 ? 'mid' : 'slow'}
+                style={{ '--d': `${index * 120}ms` } as React.CSSProperties}
               >
                 <span className="lp-step-n">{index + 1}</span>
                 <h3>
@@ -145,7 +219,7 @@ export function LandingPage({ locale = DEFAULT_LOCALE }: { locale?: Locale }) {
 
       <section className="lp-section" style={{ background: 'var(--paper-2)' }}>
         <div className="lp-shell">
-          <div className="lp-section-head reveal">
+          <div className="lp-section-head" data-reveal="up">
             <h2>You see the whole payoff before you commit</h2>
             <p>
               A worked example on 100 USDso with a 2% option budget. Both branches are shown — the good one is never the
@@ -153,8 +227,8 @@ export function LandingPage({ locale = DEFAULT_LOCALE }: { locale?: Locale }) {
             </p>
           </div>
           <div className="lp-grid lp-grid-2">
-            <div className="lp-payoff reveal">
-              <div className="lp-payoff-row win">
+            <div className="lp-payoff" data-parallax="x-l">
+              <div className="lp-payoff-row win" data-reveal="left" style={{ '--d': '0ms' } as React.CSSProperties}>
                 <span>
                   <strong>BTC at or above target</strong>
                   <br />
@@ -162,7 +236,7 @@ export function LandingPage({ locale = DEFAULT_LOCALE }: { locale?: Locale }) {
                 </span>
                 <strong>100 + coupon</strong>
               </div>
-              <div className="lp-payoff-row">
+              <div className="lp-payoff-row" data-reveal="left" style={{ '--d': '130ms' } as React.CSSProperties}>
                 <span>
                   <strong>BTC below target</strong>
                   <br />
@@ -170,7 +244,7 @@ export function LandingPage({ locale = DEFAULT_LOCALE }: { locale?: Locale }) {
                 </span>
                 <strong>98.00</strong>
               </div>
-              <div className="lp-payoff-row">
+              <div className="lp-payoff-row" data-reveal="left" style={{ '--d': '260ms' } as React.CSSProperties}>
                 <span>
                   <strong>Leg never fills</strong>
                   <br />
@@ -179,7 +253,7 @@ export function LandingPage({ locale = DEFAULT_LOCALE }: { locale?: Locale }) {
                 <strong>100.00</strong>
               </div>
             </div>
-            <article className="lp-card reveal" style={{ '--reveal-delay': '90ms' } as React.CSSProperties}>
+            <article className="lp-card" data-reveal="right" data-parallax="x-r" style={{ '--d': '120ms' } as React.CSSProperties}>
               <h3>
                 <Lock size={20} /> Why the odds are on screen
               </h3>
@@ -199,7 +273,7 @@ export function LandingPage({ locale = DEFAULT_LOCALE }: { locale?: Locale }) {
 
       <section className="lp-section" id="dreamdex">
         <div className="lp-shell">
-          <div className="lp-section-head reveal">
+          <div className="lp-section-head" data-reveal="up">
             <h2>Built on DreamDEX Event Contracts</h2>
             <p>The Event Contract is not a price feed Anker reads. It is the thing that pays the user.</p>
           </div>
@@ -220,8 +294,10 @@ export function LandingPage({ locale = DEFAULT_LOCALE }: { locale?: Locale }) {
             ].map((item, index) => (
               <article
                 key={item.title}
-                className="lp-card reveal"
-                style={{ '--reveal-delay': `${index * 90}ms` } as React.CSSProperties}
+                className="lp-card"
+                data-reveal={index === 0 ? 'left' : index === 1 ? 'tilt-r' : 'right'}
+                data-parallax={index === 1 ? 'fast' : 'mid'}
+                style={{ '--d': `${index * 120}ms` } as React.CSSProperties}
               >
                 <h3>{item.title}</h3>
                 <p>{item.body}</p>
@@ -233,11 +309,11 @@ export function LandingPage({ locale = DEFAULT_LOCALE }: { locale?: Locale }) {
 
       <section className="lp-section" id="proof" style={{ background: 'var(--paper-2)' }}>
         <div className="lp-shell">
-          <div className="lp-section-head reveal">
+          <div className="lp-section-head" data-reveal="up">
             <h2>Live on Shannon, not a mock</h2>
             <p>Every artefact below is on-chain right now. Check them yourself.</p>
           </div>
-          <dl className="lp-proof reveal">
+          <dl className="lp-proof" data-reveal="wipe">
             <div className="lp-proof-row">
               <dt>AnkerNote contract</dt>
               <dd>
@@ -278,15 +354,17 @@ export function LandingPage({ locale = DEFAULT_LOCALE }: { locale?: Locale }) {
 
       <section className="lp-section">
         <div className="lp-shell">
-          <div className="lp-close reveal">
+          <div className="lp-close" data-reveal="zoom" data-parallax="depth">
             <h2>Your wallet is the only account you need</h2>
             <p>
               Connect any EVM wallet to open the live ladder. Nothing is deposited, nothing is custodied, and you can
               disconnect at any time.
             </p>
             <div className="lp-cta-row">
-              <ConnectButton label="Connect wallet" showBalance={false} chainStatus="none" />
-              <Link href={analyticsHref} className="btn btn-secondary">
+              <span className="lp-cta-glow shine">
+                <ConnectButton label="Connect wallet" showBalance={false} chainStatus="none" />
+              </span>
+              <Link href={analyticsHref} className="btn btn-secondary shine">
                 <BookOpen size={16} /> Read the methodology
               </Link>
             </div>
