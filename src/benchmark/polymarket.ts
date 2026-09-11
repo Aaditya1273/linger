@@ -102,24 +102,48 @@ export async function fetchPolymarketBtcThresholds(): Promise<PolymarketBtcThres
  * Returns null only when nothing is within `maxStrikeOffsetUsd`, because beyond
  * that the two markets are not asking the same question.
  */
+export interface PolymarketMatch {
+  readonly match: PolymarketBtcThreshold;
+  readonly strikeOffsetUsd: number;
+  /** Polymarket settlement minus the Anker market's, in seconds. Always disclosed. */
+  readonly settlementOffsetSec: number;
+}
+
 export function nearestPolymarketThreshold(
   thresholds: readonly PolymarketBtcThreshold[],
   strikeUsd: number,
+  ankerExpirySec: number,
   maxStrikeOffsetUsd = 6_000,
-): { match: PolymarketBtcThreshold; strikeOffsetUsd: number } | null {
-  let best: { match: PolymarketBtcThreshold; strikeOffsetUsd: number } | null = null;
+): PolymarketMatch | null {
+  let best: PolymarketMatch | null = null;
   for (const candidate of thresholds) {
     const offset = Math.abs(candidate.strikeUsd - strikeUsd);
     if (offset > maxStrikeOffsetUsd) continue;
-    if (!best || offset < best.strikeOffsetUsd) best = { match: candidate, strikeOffsetUsd: offset };
+    if (!best || offset < best.strikeOffsetUsd) {
+      best = {
+        match: candidate,
+        strikeOffsetUsd: offset,
+        settlementOffsetSec: Math.round(candidate.endDateMs / 1000) - ankerExpirySec,
+      };
+    }
   }
   return best;
 }
 
 /**
  * Edge in probability points: how much cheaper DreamDEX's YES is than
- * Polymarket's for the same question. Positive means Anker's leg costs less,
- * which is exactly what makes its coupon bigger.
+ * Polymarket's. Positive means Anker's leg costs less, which is what makes its
+ * coupon bigger.
+ *
+ * ## Read this with the offsets, not on its own
+ *
+ * DreamDEX Shannon markets expire in minutes; Polymarket's BTC thresholds are
+ * same-day. A large edge is therefore usually a TENOR difference, not mispricing
+ * — a 1-minute "above $77k" and a 5-hour "above $76k" are genuinely different
+ * questions, and a probability gap between them is expected. Both the strike and
+ * the settlement offset are returned alongside (ADR-0006's rule: disclose the
+ * offset, never use it to suppress the comparison) so the number is never shown
+ * as a like-for-like claim.
  */
 export function probabilityEdgePoints(dreamdexYes: number, polymarketYes: number): number {
   return (polymarketYes - dreamdexYes) * 100;

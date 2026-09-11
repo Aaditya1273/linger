@@ -12,7 +12,14 @@ export async function GET() {
     return Response.json(cache.payload, { headers: { 'cache-control': 's-maxage=30' } });
   }
   try {
-    const thresholds = await fetchPolymarketBtcThresholds();
+    // Gamma 5xx's intermittently; one blip should not blank the benchmark column.
+    let thresholds;
+    try {
+      thresholds = await fetchPolymarketBtcThresholds();
+    } catch {
+      await new Promise((r) => setTimeout(r, 300));
+      thresholds = await fetchPolymarketBtcThresholds();
+    }
     const payload = { thresholds, fetchedAtMs: now };
     cache = { expiresAt: now + TTL_MS, payload };
     return Response.json(payload, { headers: { 'cache-control': 's-maxage=30' } });

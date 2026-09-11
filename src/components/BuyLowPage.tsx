@@ -35,6 +35,9 @@ interface MarketRow {
 interface MarketsResponse {
   serverTimeMs: number;
   markets: MarketRow[];
+  /** True when the route served its last good payload while refreshing behind it. */
+  stale?: boolean;
+  ageMs?: number;
   error?: string;
 }
 
@@ -47,6 +50,30 @@ const fmt = (raw: bigint, decimals: number, digits = 2) => {
 };
 const pct = (bps: number, digits = 2) => `${(bps / 100).toFixed(digits)}%`;
 const strikeUsd = (strikeRaw: string) => Number(BigInt(strikeRaw) / ORACLE_SCALE);
+
+/**
+ * A binary's YES ask IS its implied probability. Surfaced as "Chance" because a
+ * coupon is only meaningful next to the odds of earning it: 58% on a 3% chance
+ * is fair pricing, not free money, and hiding the probability would make the
+ * yield column read as a promise.
+ */
+const askProbability = (market: MarketRow, decimals: number) =>
+  market.askRaw ? Number(BigInt(market.askRaw)) / Number(10n ** BigInt(decimals)) : 0;
+
+/**
+ * Annualized return, or an honest dash.
+ *
+ * Below an hour the annualization is arithmetically true and practically
+ * meaningless — a 58% coupon over 60 seconds annualizes past a million percent,
+ * which reads as broken rather than impressive. ADR-0002 said keep it muted;
+ * a clamped seven-figure number is worse than omitting it.
+ */
+const ONE_HOUR_SEC = 3_600;
+function annualizedLabel(quote: BuyLowQuote): string {
+  if (!quote.executable) return '—';
+  if (quote.secondsToExpiry < ONE_HOUR_SEC) return 'n/a';
+  return pct(quote.netAprBps, 0);
+}
 
 export function BuyLowPage({ locale = DEFAULT_LOCALE }: { locale?: Locale }) {
   const copy = copyForLocale(locale);
@@ -160,6 +187,12 @@ export function BuyLowPage({ locale = DEFAULT_LOCALE }: { locale?: Locale }) {
                 <RefreshCw size={15} />
               </button>
             </div>
+            {marketsQuery.data?.stale && (
+              <p className="di-hint">
+                Showing prices from {Math.round((marketsQuery.data.ageMs ?? 0) / 1000)}s ago — the DreamDEX indexer is
+                slow right now and a refresh is in flight. Subscribe re-checks the market on-chain before signing.
+              </p>
+            )}
             {marketsQuery.isLoading ? (
               <p className="di-hint">Loading live Event Contracts…</p>
             ) : markets.length === 0 ? (
@@ -174,6 +207,7 @@ export function BuyLowPage({ locale = DEFAULT_LOCALE }: { locale?: Locale }) {
                       <th>Target price</th>
                       <th>Settles</th>
                       <th>Ask</th>
+                      <th>Chance</th>
                       <th>Period yield</th>
                       <th>Polymarket</th>
                       <th>Edge</th>
@@ -206,23 +240,27 @@ export function BuyLowPage({ locale = DEFAULT_LOCALE }: { locale?: Locale }) {
                           <td>${strikeUsd(market.strikeRaw).toLocaleString('en-US')}</td>
                           <td>{new Date(market.expirySec * 1000).toUTCString().slice(17, 22)} UTC</td>
                           <td>{live ? fmt(BigInt(market.askRaw as string), decimals, 3) : '—'}</td>
+                          <td>{live ? `${(askProbability(market, decimals) * 100).toFixed(1)}%` : '—'}</td>
                           <td>{live && rowQuote.executable ? pct(rowQuote.periodYieldBps) : <Badge tone="neutral">no liquidity</Badge>}</td>
                           <PolymarketCells
                             thresholds={thresholds}
                             strikeUsd={strikeUsd(market.strikeRaw)}
-                            dreamdexYes={live ? Number(BigInt(market.askRaw as string)) / Number(10n ** BigInt(decimals)) : null}
+                            ankerExpirySec={market.expirySec}
+                            dreamdexYes={live ? askProbability(market, decimals) : null}
                           />
-                          <td className="muted">{live && rowQuote.executable ? pct(rowQuote.netAprBps, 0) : '—'}</td>
+                          <td className="muted">{annualizedLabel(rowQuote)}</td>
                         </tr>
                       );
                     })}
                   </tbody>
                 </table>
                 <p className="di-hint">
-                  <strong>Polymarket</strong> is the same question priced elsewhere — its YES probability for the nearest
-                  BTC threshold. <strong>Edge</strong> is how many probability points cheaper the DreamDEX leg is;
-                  positive means Anker&apos;s coupon is bigger for the same exposure. The strike offset is disclosed, never
-                  used to hide a comparison.
+                  <strong>Polymarket</strong> prices the nearest comparable BTC threshold. <strong>Edge</strong> is how
+                  many probability points cheaper the DreamDEX leg is — positive means a bigger coupon for the same
+                  exposure. Both the strike offset and the settlement offset are disclosed; an Edge marked{' '}
+                  <strong>*</strong> compares markets more than an hour apart in tenor, so it is indicative, not
+                  like-for-like. Shannon markets expire in minutes while Polymarket&apos;s are same-day, so most of a
+                  large gap is tenor, not mispricing.
                 </p>
                 <p className="di-hint">
                   <strong>Period yield</strong> is the headline: these tenors are minutes, so the annualized column is a
@@ -240,8 +278,19 @@ export function BuyLowPage({ locale = DEFAULT_LOCALE }: { locale?: Locale }) {
               <Stat label="Period yield" value={quote.executable ? pct(quote.periodYieldBps) : '—'} />
               <Stat label="Coupon" value={`${fmt(quote.couponRaw, decimals)} USDso`} />
               <Stat label="If ≥ target" value={`${fmt(quote.aboveTargetRaw, decimals)} USDso`} />
-              <Stat label="If < target" value={`${fmt(quote.belowTargetRaw, decimals)} USDso`} />
+              <Stat label="Max loss" value={`${fmt(quote.legCostRaw, decimals)} USDso`} />
+              <Stat
+                label="Chance of coupon"
+                value={`${(askProbability(selected, decimals) * 100).toFixed(1)}%`}
+              />
             </StatGroup>
+            <p className="di-hint">
+              Downside is capped by construction: {fmt(quote.legCostRaw, decimals)} USDso is the option budget, the only
+              part of your {fmt(quote.principalRaw, decimals)} at risk. If BTC settles below the target you keep{' '}
+              {fmt(quote.belowTargetRaw, decimals)} USDso. The coupon pays only if BTC settles at or above the target —
+              the market currently prices that at {(askProbability(selected, decimals) * 100).toFixed(1)}%, so a larger
+              coupon always means a smaller chance of earning it.
+            </p>
 
             <details className="di-legs">
               <summary>Leg disclosure — the exact DreamDEX Event Contract</summary>
@@ -296,13 +345,15 @@ export function BuyLowPage({ locale = DEFAULT_LOCALE }: { locale?: Locale }) {
 function PolymarketCells({
   thresholds,
   strikeUsd: strike,
+  ankerExpirySec,
   dreamdexYes,
 }: {
   thresholds: readonly PolymarketBtcThreshold[];
   strikeUsd: number;
+  ankerExpirySec: number;
   dreamdexYes: number | null;
 }) {
-  const nearest = nearestPolymarketThreshold(thresholds, strike);
+  const nearest = nearestPolymarketThreshold(thresholds, strike, ankerExpirySec);
   if (!nearest || dreamdexYes === null) {
     return (
       <>
@@ -312,18 +363,23 @@ function PolymarketCells({
     );
   }
   const edge = probabilityEdgePoints(dreamdexYes, nearest.match.yesProbability);
+  const hours = nearest.settlementOffsetSec / 3_600;
+  // A tenor gap this wide means the two markets are not asking the same
+  // question, so the edge is shown as indicative rather than as a claim.
+  const differentTenor = Math.abs(hours) >= 1;
   return (
     <>
-      <td title={nearest.match.question}>
+      <td title={`${nearest.match.question} · settles ${hours >= 0 ? '+' : ''}${hours.toFixed(1)}h vs this market`}>
         {nearest.match.yesProbability.toFixed(3)}
-        {nearest.strikeOffsetUsd > 0 && (
-          <span className="muted"> @ ${nearest.match.strikeUsd.toLocaleString('en-US')}</span>
-        )}
+        <span className="muted">
+          {nearest.strikeOffsetUsd > 0 && ` @ $${nearest.match.strikeUsd.toLocaleString('en-US')}`}
+          {differentTenor && ` · ${hours >= 0 ? '+' : ''}${hours.toFixed(1)}h`}
+        </span>
       </td>
       <td>
-        <Badge tone={edge > 0 ? 'positive' : edge < 0 ? 'warning' : 'neutral'}>
+        <Badge tone={differentTenor ? 'neutral' : edge > 0 ? 'positive' : edge < 0 ? 'warning' : 'neutral'}>
           {edge > 0 ? '+' : ''}
-          {edge.toFixed(1)} pts
+          {edge.toFixed(1)} pts{differentTenor ? '*' : ''}
         </Badge>
       </td>
     </>

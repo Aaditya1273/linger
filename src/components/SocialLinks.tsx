@@ -1,6 +1,12 @@
 import { Github } from 'lucide-react';
 import { copyForLocale, DEFAULT_LOCALE, type Locale } from '../i18n';
 
+/**
+ * Repo link. Env-driven so a fork does not ship someone else's repository —
+ * the Sui-era literal pointed at cl-fi/AnkerProtocol long after the port.
+ */
+export const REPO_URL = process.env.NEXT_PUBLIC_REPO_URL ?? 'https://github.com/Aaditya1273/linger';
+
 const SOCIAL_LINKS = [
   {
     key: 'x',
@@ -11,7 +17,7 @@ const SOCIAL_LINKS = [
   {
     key: 'github',
     label: 'GitHub',
-    href: 'https://github.com/cl-fi/AnkerProtocol',
+    href: REPO_URL,
     icon: <Github size={17} aria-hidden="true" />,
   },
 ] as const;

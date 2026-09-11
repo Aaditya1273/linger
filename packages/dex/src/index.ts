@@ -173,16 +173,28 @@ function toAnker(row: BinaryMarket): AnkerBinaryMarket {
 /**
  * Every live binary market, TTL-cached.
  *
- * `loadMarkets(true)` forces a reload rather than early-returning the cached
- * registry — required because market discovery is exactly the thing that goes
- * stale on a venue that respawns markets on a 60-second cadence.
+ * Deliberately does NOT call `loadMarkets()`. That call hydrates the SDK's
+ * *unified* symbol registry (and probes the chain for perp pools), measured at
+ * ~16s against Shannon — and nothing here needs it: every read in this module
+ * goes through the address-keyed `client` tier, and so does the write path.
+ * Paying 16 seconds to populate a registry we never read is how the markets
+ * route ended up appearing hung.
+ *
+ * `asset` is pushed down to the indexer rather than filtered client-side: asking
+ * for 500 rows and discarding most of them cost ~7s where a filtered query
+ * costs a fraction of that.
  */
-export async function listBinaryMarkets(dex: Dex, opts: { force?: boolean } = {}): Promise<readonly AnkerBinaryMarket[]> {
+export async function listBinaryMarkets(
+  dex: Dex,
+  opts: { force?: boolean; asset?: string; limit?: number } = {},
+): Promise<readonly AnkerBinaryMarket[]> {
   const now = Date.now();
   if (!opts.force && liveCache && now - liveCache.at < MARKETS_TTL_MS) return liveCache.markets;
 
-  await dex.exchange.loadMarkets(true);
-  const rows = await dex.exchange.client.listBinaryMarkets({ limit: 500 });
+  const rows = await dex.exchange.client.listBinaryMarkets({
+    limit: opts.limit ?? 120,
+    ...(opts.asset ? { asset: opts.asset } : {}),
+  });
   const markets = rows.filter(isBinaryMarket).map(toAnker);
   liveCache = { at: now, markets };
   return markets;

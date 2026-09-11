@@ -88,7 +88,7 @@ describe('AnalyticsPage', () => {
     expect(screen.queryByText('Sample start date')).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Source repository' })).toHaveAttribute(
       'href',
-      'https://github.com/cl-fi/AnkerProtocol',
+      'https://github.com/Aaditya1273/linger',
     );
 
     // Closing CTA points at what is open now (hourly tenors) — the retired
@@ -146,7 +146,7 @@ describe('AnalyticsPage', () => {
     expect(screen.getByText(/50%/)).toBeVisible();
     expect(screen.getByRole('link', { name: '源代码仓库' })).toHaveAttribute(
       'href',
-      'https://github.com/cl-fi/AnkerProtocol',
+      'https://github.com/Aaditya1273/linger',
     );
     expect(screen.getByRole('link', { name: '前往双币投资' })).toHaveAttribute(
       'href',

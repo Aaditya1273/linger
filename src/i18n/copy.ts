@@ -341,7 +341,7 @@ export const enCopy = {
     methodologyWindowTerm: 'Sampling window',
     methodologyWindow: (start: string, end: string) => `${start} – ${end}.`,
     methodologyRepo: 'Source repository',
-    methodologyRepoUrl: 'https://github.com/cl-fi/AnkerProtocol',
+    methodologyRepoUrl: process.env.NEXT_PUBLIC_REPO_URL ?? 'https://github.com/Aaditya1273/linger',
     ctaTitle: "See today's Edge, rung by rung",
     ctaBody:
       'The product ladder runs the same comparison live for every target price — Anker net APR next to the nearest-expiry Binance product.',
@@ -769,7 +769,7 @@ export const zhCnCopy: AppCopy = {
     methodologyWindowTerm: '采样窗口',
     methodologyWindow: (start, end) => `${start} 至 ${end}。`,
     methodologyRepo: '源代码仓库',
-    methodologyRepoUrl: 'https://github.com/cl-fi/AnkerProtocol',
+    methodologyRepoUrl: process.env.NEXT_PUBLIC_REPO_URL ?? 'https://github.com/Aaditya1273/linger',
     ctaTitle: '逐档查看今天的 Edge',
     ctaBody: '产品页阶梯对每个目标价实时运行同一套对比——Anker 净 APR 与最近到期的 Binance 产品并排呈现。',
     ctaButton: '前往双币投资',

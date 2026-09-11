@@ -9,17 +9,32 @@
  * ladder cannot be built. The compiler below keeps the ported identity exactly
  * and collapses the ladder to its single rung.
  *
- * ## The identity, unchanged from the Sui version
+ * ## Sizing the leg: a bounded option budget
  *
- *   quantity  Q   = principal / targetPrice   (the BTC amount principal buys at target)
- *   reserve       = principal − Q             (bookkeeping split, not cash)
- *   legCost       = Q × ask                   (live, from the order book)
- *   coupon        = Q − legCost
+ * A DreamDEX outcome token pays ONE COLLATERAL UNIT if it wins — it is not a
+ * unit of BTC. The Sui ladder sized each rung as `(principal / targetPrice) ×
+ * width`, where the USD width cancelled the BTC denominator and left a
+ * collateral amount. Collapsed to a single rung there is no width, so
+ * `principal / targetPrice` alone is dimensionally wrong: on a $77k strike it
+ * sizes the leg at ~0.0013 of the principal and the coupon rounds to zero.
+ *
+ * Instead the leg is sized by an explicit OPTION BUDGET — the slice of
+ * principal at risk — which is how a structured note is actually built:
+ *
+ *   budget    = principal × optionBudgetBps   (the most the user can lose)
+ *   quantity Q= budget / ask                  (payout bought with that budget)
+ *   legCost   = budget
+ *   coupon    = Q − budget
+ *   reserve   = principal − Q                 (bookkeeping split, not cash)
  *
  * Settlement, stated as both branches rather than one headline number:
- *   above target (YES) → cash + Q      = principal + coupon
- *   below target (NO)  → cash          = principal − legCost
- * where cash = principal − legCost is what is actually left after buying.
+ *   above target (YES) → cash + Q = principal + coupon
+ *   below target (NO)  → cash     = principal − budget
+ * where cash = principal − budget is what is actually left after buying.
+ *
+ * The budget is the whole risk story: downside is capped at it by construction,
+ * and a cheaper (less likely) YES buys more payout with the same budget, so the
+ * coupon rises exactly as the probability of keeping it falls.
  *
  * ## Yield, not APR
  *
@@ -59,19 +74,28 @@ export interface BuyLowInput {
   readonly askRaw: bigint;
   /** Market strike in the oracle's price scale. */
   readonly strikeRaw: bigint;
-  /** Oracle price scale divisor (strike 7713585 at scale 1e2 == $77,135.85). */
+  /**
+   * Oracle price scale divisor (strike 7713585 at scale 1e2 == $77,135.85).
+   * Carried for display and for the note's on-chain record; the leg is sized
+   * from the option budget, not from the strike.
+   */
   readonly oracleScale: bigint;
   readonly expirySec: number;
   readonly nowSec: number;
   readonly feeBps: number;
+  /** Slice of principal spent on the leg — the maximum loss. Default 2%. */
+  readonly optionBudgetBps?: number;
   readonly scale: Scale;
 }
+
+/** Default option budget: 2% of principal at risk. */
+export const DEFAULT_OPTION_BUDGET_BPS = 200;
 
 const BPS = 10_000n;
 const SECONDS_PER_YEAR = 365n * 24n * 60n * 60n;
 
 export function compileBuyLow(input: BuyLowInput): BuyLowQuote {
-  const { principalRaw, askRaw, strikeRaw, oracleScale, scale } = input;
+  const { principalRaw, askRaw, strikeRaw, scale } = input;
   const secondsToExpiry = Math.max(0, input.expirySec - input.nowSec);
 
   const zero: Omit<BuyLowQuote, 'executable' | 'warning'> = {
@@ -98,11 +122,12 @@ export function compileBuyLow(input: BuyLowInput): BuyLowQuote {
   }
   if (secondsToExpiry <= 0) return { ...zero, executable: false, warning: 'This market has expired.' };
 
-  // Q = principal / targetPrice, carried through the oracle's own scale so the
-  // division never leaves bigint.
-  const quantityRaw = (principalRaw * oracleScale) / strikeRaw;
-  const legCostRaw = (quantityRaw * askRaw) / scale.one;
-  const couponRaw = quantityRaw - legCostRaw;
+  // Budget first, then the payout that budget buys. All bigint, all collateral
+  // units — no BTC-denominated intermediate to get the dimensions wrong.
+  const budgetBps = input.optionBudgetBps ?? DEFAULT_OPTION_BUDGET_BPS;
+  const legCostRaw = (principalRaw * BigInt(budgetBps)) / BPS;
+  const quantityRaw = (legCostRaw * scale.one) / askRaw;
+  const couponRaw = quantityRaw > legCostRaw ? quantityRaw - legCostRaw : 0n;
   const reserveRaw = principalRaw > quantityRaw ? principalRaw - quantityRaw : 0n;
   const cashRaw = principalRaw > legCostRaw ? principalRaw - legCostRaw : 0n;
 
@@ -121,7 +146,7 @@ export function compileBuyLow(input: BuyLowInput): BuyLowQuote {
   };
 
   if (legCostRaw > principalRaw) {
-    return { ...quote, executable: false, warning: 'Leg cost exceeds the amount — reduce the target price.' };
+    return { ...quote, executable: false, warning: 'Option budget exceeds the amount.' };
   }
   if (couponRaw <= 0n) {
     return { ...quote, executable: false, warning: 'Current ask leaves no positive coupon.' };

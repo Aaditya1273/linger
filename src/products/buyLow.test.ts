@@ -14,12 +14,29 @@ const base = {
 };
 
 describe('compileBuyLow', () => {
-  it('keeps the ported identity: above-target payout == principal + coupon', () => {
+  it('keeps the identity: above-target payout == principal + coupon', () => {
     const q = compileBuyLow(base);
     expect(q.executable).toBe(true);
     expect(q.couponRaw).toBe(q.quantityRaw - q.legCostRaw);
     expect(q.aboveTargetRaw).toBe(base.principalRaw + q.couponRaw);
     expect(q.belowTargetRaw).toBe(base.principalRaw - q.legCostRaw);
+  });
+
+  it('caps downside at the option budget, and the coupon is material', () => {
+    // 1,000 principal, 2% budget, ask 0.85 -> 20 spent, buys 23.52 payout.
+    const q = compileBuyLow(base);
+    expect(q.legCostRaw).toBe(20_000_000n);                 // exactly 2% at risk
+    expect(base.principalRaw - q.belowTargetRaw).toBe(20_000_000n);
+    expect(q.couponRaw).toBeGreaterThan(3_000_000n);        // ~3.5 USDso, not dust
+    expect(q.periodYieldBps).toBeGreaterThan(30);           // >0.30%, not 0.00%
+  });
+
+  it('a cheaper (less likely) YES buys more payout for the same budget', () => {
+    const expensive = compileBuyLow({ ...base, askRaw: 900_000n });
+    const cheap = compileBuyLow({ ...base, askRaw: 300_000n });
+    expect(cheap.couponRaw).toBeGreaterThan(expensive.couponRaw);
+    // Same budget either way — the risk is unchanged, only the reward moves.
+    expect(cheap.legCostRaw).toBe(expensive.legCostRaw);
   });
 
   it('refuses a quote with no resting ask instead of quoting zero', () => {
