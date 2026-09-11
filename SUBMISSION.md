@@ -19,7 +19,7 @@ git push -u origin main
 Confirm `.env` is absent from the push — `.gitignore` blocks `.env*`, and only
 `.env.example` is tracked.
 
-## 2 · Fund a burner, deploy, prove the write path
+## 2 · Fund a burner, deploy, prove the write path — ✅ DONE
 
 ```bash
 # a) get STT
@@ -92,5 +92,17 @@ constraints, disclosed in the product, not gaps someone found.
 | `/api/markets` live Shannon data | yes |
 | `/api/polymarket` live ladder | yes, 8 thresholds |
 | `grep -riE "mysten\|enoki"` in `src/ app/ packages/` | 0 |
-| AnkerNote deployed | **pending step 2** |
-| `smoke.ts` real order | **pending step 2** |
+| AnkerNote deployed | **LIVE** `0x863b54bb144cec7ae73d56983193e2e5a60652e3` |
+| `smoke.ts` real order | **FILLED** — 1 YES @ 0.968 |
+
+## Live on Somnia Shannon — verified on-chain
+
+| What | Value |
+| --- | --- |
+| **AnkerNote** | [`0x863b54bb…52e3`](https://shannon-explorer.somnia.network/address/0x863b54bb144cec7ae73d56983193e2e5a60652e3) — `name() = "Anker Note"`, `symbol() = "ANKER"`, `feeBps() = 1000` |
+| **Deploy tx** | [`0x442536b7…139b`](https://shannon-explorer.somnia.network/tx/0x442536b7245a17d9e775fa62a642a845fea438f081382eba851f7b5f8787139b) — SUCCESS, block 485300023 |
+| **Real IOC order** | [`0x2d9d2788…5f46`](https://shannon-explorer.somnia.network/tx/0x2d9d2788b74f8c8e916e07c4f4de8605b3da22f959b25f46c8e581466b985f46) — SUCCESS, block 485302552, filled 1 YES @ 0.968 |
+| Deployer / signer | `0xf691DBca14ad7733B7266b6B0c512B317843102f` |
+
+**Use the IOC order hash in the demo video** — it is the proof that the write path
+is real, not a mock.

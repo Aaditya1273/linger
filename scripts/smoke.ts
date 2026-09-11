@@ -30,22 +30,32 @@ import {
   type AnkerBinaryMarket,
 } from "@anker/dex";
 
-// Minimal .env loader — avoids a dependency for six lines of parsing.
-function loadEnv(path = ".env"): void {
-  let raw: string;
-  try {
-    raw = readFileSync(path, "utf8");
-  } catch {
-    return;
-  }
-  for (const line of raw.split(/\r?\n/)) {
-    const match = /^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/.exec(line);
-    if (!match) continue;
-    const [, key, value] = match;
-    if (key && process.env[key] === undefined) {
-      process.env[key] = value?.replace(/^["']|["']$/g, "") ?? "";
+/**
+ * Env loader: `.env.local` first (Next's own convention, and where a key
+ * actually belongs), then `.env`. First file to define a name wins.
+ */
+function loadEnv(paths = [".env.local", ".env"]): void {
+  for (const path of paths) {
+    let raw: string;
+    try {
+      raw = readFileSync(path, "utf8");
+    } catch {
+      continue;
+    }
+    for (const line of raw.split(/\r?\n/)) {
+      const m = /^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/.exec(line);
+      if (m?.[1] && process.env[m[1]] === undefined) {
+        process.env[m[1]] = m[2]?.replace(/^["']|["']$/g, "") ?? "";
+      }
     }
   }
+}
+
+/** Accepts BURNER_PRIVATE_KEY or the plainer PRIVATE_KEY, with or without 0x. */
+function burnerKey(): `0x${string}` | undefined {
+  const raw = (process.env.BURNER_PRIVATE_KEY ?? process.env.PRIVATE_KEY ?? "").trim();
+  if (!/^(0x)?[0-9a-fA-F]{64}$/.test(raw)) return undefined;
+  return (raw.startsWith("0x") ? raw : `0x${raw}`) as `0x${string}`;
 }
 
 const log = (...args: unknown[]) => console.log(...args);
@@ -57,12 +67,17 @@ function fail(msg: string): never {
 
 async function main(): Promise<void> {
   loadEnv();
-  if (!process.env.BURNER_PRIVATE_KEY?.trim()) {
-    fail("BURNER_PRIVATE_KEY is not set. Copy .env.example to .env and add a funded burner key.");
+  const key = burnerKey();
+  if (!key) {
+    fail(
+      "No burner key found. Set PRIVATE_KEY (or BURNER_PRIVATE_KEY) to a 64-hex-char " +
+        "key in .env.local — see .env.example.",
+    );
   }
+  process.env.BURNER_PRIVATE_KEY = key;
 
   const config = configFromEnv();
-  if (!config.privateKey) fail("BURNER_PRIVATE_KEY did not parse as a 0x-prefixed key.");
+  if (!config.privateKey) fail("Burner key did not parse.");
   const dex = createDex(config);
   const account = privateKeyToAccount(config.privateKey);
   log(`\n▸ signer      ${account.address}`);
@@ -74,7 +89,18 @@ async function main(): Promise<void> {
     fail("Burner has 0 STT and cannot pay gas. Fund it at https://testnet.somnia.network then re-run.");
   }
 
-  // --- 1. discover live markets -------------------------------------------
+  // --- 1. fund tUSDC FIRST ------------------------------------------------
+  // Order matters on a venue whose markets live ~60s: a faucet tx between
+  // choosing a market and sending the order can eat most of that market's
+  // remaining life, and the order then lands after it locks.
+  try {
+    const faucet = await dex.exchange.trader.faucet();
+    log(`\n▸ faucet tx   ${faucet.hash}`);
+  } catch (error) {
+    log(`\n▸ faucet      skipped (${error instanceof Error ? error.message : "unavailable"})`);
+  }
+
+  // --- 2. discover live markets -------------------------------------------
   const markets = await listBinaryMarkets(dex, { force: true });
   log(`\n▸ live binary markets: ${markets.length}`);
   if (markets.length === 0) fail("Indexer returned no binary markets.");
@@ -86,10 +112,17 @@ async function main(): Promise<void> {
     log(`    ${new Date(expiry * 1000).toISOString()}  strikes=${ms.length}  t${dt >= 0 ? "+" : ""}${dt}s`);
   }
 
-  // --- 2. pick a market that is live on-chain AND has a resting ask --------
+  // --- 3. pick a market with real runway, live on-chain, with a resting ask
+  // MIN_RUNWAY_SEC: the order needs time to be signed, sent and mined before
+  // the market locks. Anything tighter is a coin flip against the clock.
+  const MIN_RUNWAY_SEC = 20;
   let chosen: AnkerBinaryMarket | undefined;
   let askRaw = 0n;
-  for (const market of markets) {
+  const candidates = markets
+    .filter((m) => m.expirySec - Math.floor(Date.now() / 1000) >= MIN_RUNWAY_SEC)
+    .sort((a, b) => b.expirySec - a.expirySec);
+
+  for (const market of candidates) {
     const gate = await gateForWrite(dex, market);
     if (!gate.ok) continue;
     const ask = await bestAsk(dex, market);
@@ -112,18 +145,16 @@ async function main(): Promise<void> {
   log(`▸ collateral  ${market.collateral} (${scale.decimals} decimals)`);
   log(`▸ best ask    ${formatRaw(askRaw, scale)}`);
 
-  // --- 3. fund tUSDC via the SDK faucet -----------------------------------
-  try {
-    const faucet = await dex.exchange.trader.faucet();
-    log(`\n▸ faucet tx   ${faucet.hash}`);
-  } catch (error) {
-    log(`▸ faucet      skipped (${error instanceof Error ? error.message : "unavailable"})`);
-  }
-
   // --- 4. place ONE real IOC order ----------------------------------------
+  // Generous cross buffer. With IOC the limit is only a BOUND: the fill happens
+  // at the resting maker's price, so bidding well above the ask does not cost
+  // more — it just stops a tick of drift between the book read and the mine
+  // from turning into ImmediateOrCancelNoFill.
+  const CROSS_BUFFER_BPS = 2_000;
   const qtyRaw = parseRaw("1", scale); // 1 whole outcome token
-  log(`\n▸ placing IOC BUY_YES qty=${formatRaw(qtyRaw, scale)} …`);
-  const fill = await buyUpIOC(dex, market, qtyRaw);
+  log(`\n▸ runway      ${market.expirySec - Math.floor(Date.now() / 1000)}s`);
+  log(`▸ placing IOC BUY_YES qty=${formatRaw(qtyRaw, scale)} (limit = ask + ${CROSS_BUFFER_BPS / 100} pts) …`);
+  const fill = await buyUpIOC(dex, market, qtyRaw, { bufferBps: CROSS_BUFFER_BPS });
 
   log(`\n  outcome        ${fill.outcome}`);
   log(`  transactionHash ${fill.transactionHash ?? "(none)"}`);

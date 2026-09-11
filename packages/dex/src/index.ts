@@ -47,6 +47,8 @@ import { costOf, crossingPrice, makeReadClient, resolveScale, type Scale } from 
 export * from "./types";
 export {
   applyBps,
+  MAX_ENTRY_PROBABILITY_BPS,
+  MIN_ENTRY_PROBABILITY_BPS,
   costOf,
   crossingPrice,
   formatRaw,
@@ -76,15 +78,20 @@ export interface DexConfig {
  * entirely: they rotate, so they are resolved per market at runtime and cached
  * with a TTL (see `listBinaryMarkets` / `gateForWrite`).
  */
-export function configFromEnv(env: NodeJS.ProcessEnv = process.env): DexConfig {
-  const indexerUrl = env.INDEXER_URL ?? env.NEXT_PUBLIC_INDEXER_URL;
-  const rpcUrl = env.SOMNIA_RPC ?? env.NEXT_PUBLIC_SOMNIA_RPC;
-  const wsRpcUrl = env.WS_RPC ?? env.NEXT_PUBLIC_WS_RPC;
-  if (!indexerUrl) throw new Error("INDEXER_URL is not set (see .env.example).");
-  if (!rpcUrl) throw new Error("SOMNIA_RPC is not set (see .env.example).");
-  if (!wsRpcUrl) throw new Error("WS_RPC is not set (see .env.example).");
+export const SHANNON_DEFAULTS = {
+  // Public Shannon endpoints. Defaulted rather than required so a fresh clone
+  // runs with no env at all; override any of them in .env.local.
+  indexerUrl: "https://dev.smk.somnia.host/v1/graphql",
+  rpcUrl: "https://dream-rpc.somnia.network",
+  wsRpcUrl: "wss://dream-rpc.somnia.network/ws",
+} as const;
 
-  const key = env.BURNER_PRIVATE_KEY?.trim();
+export function configFromEnv(env: NodeJS.ProcessEnv = process.env): DexConfig {
+  const indexerUrl = env.INDEXER_URL ?? env.NEXT_PUBLIC_INDEXER_URL ?? SHANNON_DEFAULTS.indexerUrl;
+  const rpcUrl = env.SOMNIA_RPC ?? env.NEXT_PUBLIC_SOMNIA_RPC ?? SHANNON_DEFAULTS.rpcUrl;
+  const wsRpcUrl = env.WS_RPC ?? env.NEXT_PUBLIC_WS_RPC ?? SHANNON_DEFAULTS.wsRpcUrl;
+
+  const key = (env.BURNER_PRIVATE_KEY ?? env.PRIVATE_KEY)?.trim();
   return {
     indexerUrl,
     rpcUrl,
@@ -362,7 +369,17 @@ export async function scanSettled(dex: Dex, opts: { limit?: number } = {}): Prom
   // `listPastBinaryMarkets` is the dedicated past tier. Filtering the LIVE list
   // by status returns nothing, because a settled market has already left it —
   // that is the whole respawn mechanic, and it is why this function exists.
-  const rows = await dex.exchange.client.listPastBinaryMarkets({ limit: opts.limit ?? 200 });
+  //
+  // An indexer blip returns an empty history, never throws: the portfolio must
+  // degrade to "nothing to claim yet" rather than take the page down, and the
+  // caller cannot distinguish a transient failure from a genuine empty list
+  // anyway.
+  let rows;
+  try {
+    rows = await dex.exchange.client.listPastBinaryMarkets({ limit: opts.limit ?? 200 });
+  } catch {
+    return [];
+  }
 
   return rows.filter(isBinaryMarket).map((row): SettledMarket => {
     const anker = toAnker(row);

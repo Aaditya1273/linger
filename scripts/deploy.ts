@@ -12,17 +12,28 @@ import { privateKeyToAccount } from "viem/accounts";
 import { somniaShannon } from "@somnia-chain/markets-sdk/chains";
 import { SOMNIA_TESTNET_ADDRESSES } from "@somnia-chain/markets-sdk";
 
-function loadEnv(path = ".env"): void {
-  let raw: string;
-  try {
-    raw = readFileSync(path, "utf8");
-  } catch {
-    return;
+function loadEnv(paths = [".env.local", ".env"]): void {
+  for (const path of paths) {
+    let raw: string;
+    try {
+      raw = readFileSync(path, "utf8");
+    } catch {
+      continue;
+    }
+    for (const line of raw.split(/\r?\n/)) {
+      const m = /^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/.exec(line);
+      if (m?.[1] && process.env[m[1]] === undefined) {
+        process.env[m[1]] = m[2]?.replace(/^["']|["']$/g, "") ?? "";
+      }
+    }
   }
-  for (const line of raw.split(/\r?\n/)) {
-    const m = /^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/.exec(line);
-    if (m?.[1] && process.env[m[1]] === undefined) process.env[m[1]] = m[2]?.replace(/^["']|["']$/g, "") ?? "";
-  }
+}
+
+/** Accepts BURNER_PRIVATE_KEY or the plainer PRIVATE_KEY, with or without 0x. */
+function burnerKey(): `0x${string}` | undefined {
+  const raw = (process.env.BURNER_PRIVATE_KEY ?? process.env.PRIVATE_KEY ?? "").trim();
+  if (!/^(0x)?[0-9a-fA-F]{64}$/.test(raw)) return undefined;
+  return (raw.startsWith("0x") ? raw : `0x${raw}`) as `0x${string}`;
 }
 
 function fail(msg: string): never {
@@ -32,15 +43,15 @@ function fail(msg: string): never {
 
 async function main(): Promise<void> {
   loadEnv();
-  const key = process.env.BURNER_PRIVATE_KEY?.trim();
-  if (!key) fail("BURNER_PRIVATE_KEY is not set (see .env.example).");
+  const key = burnerKey();
+  if (!key) fail("No burner key found. Set PRIVATE_KEY (or BURNER_PRIVATE_KEY) in .env.local.");
 
   const artifact = JSON.parse(readFileSync("contracts/build/AnkerNote.json", "utf8")) as {
     abi: unknown[];
     bytecode: Hex;
   };
 
-  const account = privateKeyToAccount((key.startsWith("0x") ? key : `0x${key}`) as Hex);
+  const account = privateKeyToAccount(key);
   const rpc = process.env.SOMNIA_RPC ?? "https://dream-rpc.somnia.network";
   const publicClient = createPublicClient({ chain: somniaShannon, transport: http(rpc) });
   const wallet = createWalletClient({ account, chain: somniaShannon, transport: http(rpc) });

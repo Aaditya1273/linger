@@ -55,14 +55,30 @@ export function applyBps(value: bigint, bps: number): bigint {
 }
 
 /**
- * Price to cross with: best ask plus a buffer, clamped to `one`.
+ * Highest entry probability a binary pool accepts, in bps of one whole outcome
+ * token. Shannon pools publish `maxEntryProbability: 0.99`; a price AT 1.0 is
+ * rejected with `PriceOutOfBounds()`, so clamping to `one` is not safe.
+ */
+export const MAX_ENTRY_PROBABILITY_BPS = 9_900;
+/** Mirror bound on the low side (`minEntryProbability: 0.01`). */
+export const MIN_ENTRY_PROBABILITY_BPS = 100;
+
+/**
+ * Price to cross with: best ask plus a buffer, clamped into the pool's
+ * admissible probability band.
  *
- * A binary price can never exceed 1 whole collateral unit per outcome token, so
- * an unclamped "ask + buffer" is rejected by the pool rather than crossing.
+ * With IOC the limit is only a BOUND — the fill happens at the resting maker's
+ * price — so a generous buffer costs nothing and absorbs book drift between the
+ * read and the mine. What it must NOT do is leave the band: an unclamped
+ * "ask + buffer" on a 0.95 ask lands above 1.0 and the pool rejects the whole
+ * order rather than crossing.
  */
 export function crossingPrice(askRaw: bigint, scale: Scale, bufferBps: number): bigint {
+  const ceiling = applyBps(scale.one, MAX_ENTRY_PROBABILITY_BPS);
+  const floor = applyBps(scale.one, MIN_ENTRY_PROBABILITY_BPS);
   const buffered = askRaw + applyBps(scale.one, bufferBps);
-  return buffered > scale.one ? scale.one : buffered;
+  if (buffered > ceiling) return ceiling;
+  return buffered < floor ? floor : buffered;
 }
 
 /** Cost of `qtyRaw` outcome tokens at `priceRaw`, floor-rounded to raw collateral. */
