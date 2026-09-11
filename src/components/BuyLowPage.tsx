@@ -5,6 +5,11 @@ import { useQuery } from '@tanstack/react-query';
 import { useAccount, useBalance, useWalletClient, useWriteContract } from 'wagmi';
 import { AlertTriangle, Droplet, RefreshCw } from 'lucide-react';
 import { compileBuyLow, type BuyLowQuote } from '../products/buyLow';
+import {
+  nearestPolymarketThreshold,
+  probabilityEdgePoints,
+  type PolymarketBtcThreshold,
+} from '../benchmark/polymarket';
 import { copyForLocale, DEFAULT_LOCALE, type Locale } from '../i18n';
 import { FAUCET_STT, SOMNIA_CHAIN, explorerTx } from '../wallet/config';
 import { ANKER_NOTE_ABI, ANKER_NOTE_ADDRESS, isNoteContractConfigured } from '../wallet/ankerNote';
@@ -57,6 +62,16 @@ export function BuyLowPage({ locale = DEFAULT_LOCALE }: { locale?: Locale }) {
     },
     refetchInterval: 10_000,
   });
+
+  // Polymarket quotes the SAME instrument shape (a YES probability on a BTC
+  // threshold), so the benchmark is probability against probability — no APR
+  // translation, no tenor fudge.
+  const polymarketQuery = useQuery<{ thresholds: PolymarketBtcThreshold[]; error?: string }>({
+    queryKey: ['polymarket-btc'],
+    queryFn: async () => (await fetch('/api/polymarket')).json(),
+    refetchInterval: 60_000,
+  });
+  const thresholds = polymarketQuery.data?.thresholds ?? [];
 
   const markets = marketsQuery.data?.markets ?? [];
   const decimals = markets[0]?.decimals ?? 6;
@@ -160,6 +175,8 @@ export function BuyLowPage({ locale = DEFAULT_LOCALE }: { locale?: Locale }) {
                       <th>Settles</th>
                       <th>Ask</th>
                       <th>Period yield</th>
+                      <th>Polymarket</th>
+                      <th>Edge</th>
                       <th>Ref. APR</th>
                     </tr>
                   </thead>
@@ -190,12 +207,23 @@ export function BuyLowPage({ locale = DEFAULT_LOCALE }: { locale?: Locale }) {
                           <td>{new Date(market.expirySec * 1000).toUTCString().slice(17, 22)} UTC</td>
                           <td>{live ? fmt(BigInt(market.askRaw as string), decimals, 3) : '—'}</td>
                           <td>{live && rowQuote.executable ? pct(rowQuote.periodYieldBps) : <Badge tone="neutral">no liquidity</Badge>}</td>
+                          <PolymarketCells
+                            thresholds={thresholds}
+                            strikeUsd={strikeUsd(market.strikeRaw)}
+                            dreamdexYes={live ? Number(BigInt(market.askRaw as string)) / Number(10n ** BigInt(decimals)) : null}
+                          />
                           <td className="muted">{live && rowQuote.executable ? pct(rowQuote.netAprBps, 0) : '—'}</td>
                         </tr>
                       );
                     })}
                   </tbody>
                 </table>
+                <p className="di-hint">
+                  <strong>Polymarket</strong> is the same question priced elsewhere — its YES probability for the nearest
+                  BTC threshold. <strong>Edge</strong> is how many probability points cheaper the DreamDEX leg is;
+                  positive means Anker&apos;s coupon is bigger for the same exposure. The strike offset is disclosed, never
+                  used to hide a comparison.
+                </p>
                 <p className="di-hint">
                   <strong>Period yield</strong> is the headline: these tenors are minutes, so the annualized column is a
                   muted reference only — it is not a rate you can earn for a year.
@@ -256,6 +284,49 @@ export function BuyLowPage({ locale = DEFAULT_LOCALE }: { locale?: Locale }) {
       </main>
       <AppFooter locale={locale} />
     </div>
+  );
+}
+
+/**
+ * Polymarket comparison for one ladder row.
+ *
+ * A dash means no threshold within the offset bound — the two venues are not
+ * asking the same question, and an invented number would be worse than none.
+ */
+function PolymarketCells({
+  thresholds,
+  strikeUsd: strike,
+  dreamdexYes,
+}: {
+  thresholds: readonly PolymarketBtcThreshold[];
+  strikeUsd: number;
+  dreamdexYes: number | null;
+}) {
+  const nearest = nearestPolymarketThreshold(thresholds, strike);
+  if (!nearest || dreamdexYes === null) {
+    return (
+      <>
+        <td className="muted">—</td>
+        <td className="muted">—</td>
+      </>
+    );
+  }
+  const edge = probabilityEdgePoints(dreamdexYes, nearest.match.yesProbability);
+  return (
+    <>
+      <td title={nearest.match.question}>
+        {nearest.match.yesProbability.toFixed(3)}
+        {nearest.strikeOffsetUsd > 0 && (
+          <span className="muted"> @ ${nearest.match.strikeUsd.toLocaleString('en-US')}</span>
+        )}
+      </td>
+      <td>
+        <Badge tone={edge > 0 ? 'positive' : edge < 0 ? 'warning' : 'neutral'}>
+          {edge > 0 ? '+' : ''}
+          {edge.toFixed(1)} pts
+        </Badge>
+      </td>
+    </>
   );
 }
 
