@@ -306,7 +306,10 @@ function TrackChart({
             type="monotone"
             stroke="var(--navy)"
             strokeWidth={2.5}
-            dot={false}
+            // Visible dots: with a handful of Runs the median is a straight
+            // segment, and an undotted straight line reads as an illustration
+            // rather than a measurement. The dots are the evidence.
+            dot={{ r: 3.5, strokeWidth: 2, fill: 'var(--paper)', stroke: 'var(--navy)' }}
             activeDot={{ r: 6 }}
             isAnimationActive={false}
           />
